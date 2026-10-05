@@ -14,7 +14,8 @@ import {
   deleteRequestFromFirestore, 
   saveProjectToFirestore, 
   deleteProjectFromFirestore, 
-  seedInitialDataToFirebase,
+  ensureCleanDatabaseState,
+  clearAllSampleDataFromFirebase,
   syncAllDataToFirebase
 } from './services/firebase';
 import { AppUser, subscribeToAuth, signOutUser, getStoredUser } from './services/auth';
@@ -65,10 +66,8 @@ export default function App() {
       // 1. Validate connection
       await testFirestoreConnection();
 
-      // 2. Seed initial data to Firestore if cloud collection is empty
-      const initialProjects = loadProjects();
-      const initialRequests = loadRequests();
-      await seedInitialDataToFirebase(initialProjects, initialRequests);
+      // 2. Ensure all mock sample data is completely purged
+      await ensureCleanDatabaseState();
 
       // 3. Real-time subscriptions across all users
       unsubRequests = subscribeToRequests((firestoreRequests) => {
@@ -202,12 +201,12 @@ export default function App() {
     }
   };
 
-  const handleResetData = () => {
-    if (window.confirm('คำเตือน: คุณต้องการรีเซ็ตข้อมูลทั้งหมดกลับสู่ค่าเริ่มต้นจากโรงงานหรือไม่?')) {
+  const handleResetData = async () => {
+    if (window.confirm('คำเตือน: คุณต้องการล้างข้อมูลทั้งหมดในระบบและใน Firebase หรือไม่?')) {
       const reset = resetAllData();
       setProjects(reset.projects);
       setRequests(reset.requests);
-      syncAllDataToFirebase(reset.projects, reset.requests);
+      await clearAllSampleDataFromFirebase();
     }
   };
 

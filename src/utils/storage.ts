@@ -29,12 +29,10 @@ export function loadProjects(): Project[] {
       }
     }
 
-    // First time initialization
-    saveProjects(INITIAL_PROJECTS);
-    return INITIAL_PROJECTS;
+    return [];
   } catch (err) {
     console.error('Error loading shared master projects:', err);
-    return INITIAL_PROJECTS;
+    return [];
   }
 }
 
@@ -74,12 +72,10 @@ export function loadRequests(): EngineerRequest[] {
       }
     }
 
-    // First time initialization
-    saveRequests(INITIAL_REQUESTS);
-    return INITIAL_REQUESTS;
+    return [];
   } catch (err) {
     console.error('Error loading shared master requests:', err);
-    return INITIAL_REQUESTS;
+    return [];
   }
 }
 
@@ -121,22 +117,23 @@ export function mergeRequestData(existingReq: EngineerRequest, updatedReq: Parti
 }
 
 /**
- * Reset all data to factory initial state
+ * Reset all data to clean empty state
  */
 export function resetAllData(): { projects: Project[]; requests: EngineerRequest[] } {
   try {
-    localStorage.removeItem('lumencraft_cloud_seeded_v2');
-    saveProjects(INITIAL_PROJECTS);
-    saveRequests(INITIAL_REQUESTS);
+    localStorage.removeItem(MASTER_PROJECTS_KEY);
+    localStorage.removeItem(MASTER_REQUESTS_KEY);
+    localStorage.removeItem(BACKUP_PROJECTS_KEY);
+    localStorage.removeItem(BACKUP_REQUESTS_KEY);
     return {
-      projects: INITIAL_PROJECTS,
-      requests: INITIAL_REQUESTS
+      projects: [],
+      requests: []
     };
   } catch (err) {
     console.error('Failed to reset data:', err);
     return {
-      projects: INITIAL_PROJECTS,
-      requests: INITIAL_REQUESTS
+      projects: [],
+      requests: []
     };
   }
 }

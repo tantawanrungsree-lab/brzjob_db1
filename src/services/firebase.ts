@@ -16,7 +16,7 @@ export const db = getFirestore(app);
 export const REQUESTS_COLLECTION = 'requests';
 export const PROJECTS_COLLECTION = 'projects';
 
-const SEED_FLAG_KEY = 'lumencraft_cloud_seeded_v2';
+const CLEAN_FLAG_KEY = 'lumencraft_cloud_purged_sample_data_v3';
 
 /**
  * Validate connection to Firestore as requested by Firebase integration spec
@@ -30,7 +30,6 @@ export async function testFirestoreConnection(): Promise<boolean> {
       console.warn("Please check your Firebase configuration / connection state.");
       return false;
     }
-    // Any other response means server reached
     return true;
   }
 }
@@ -52,7 +51,6 @@ export function subscribeToRequests(onUpdate: (requests: EngineerRequest[]) => v
       if (dateB !== dateA) return dateB.localeCompare(dateA);
       return (b.documentNo || '').localeCompare(a.documentNo || '');
     });
-    // Pass updated list to sync creations, updates, and deletions immediately across all users
     onUpdate(list);
   }, (err) => {
     console.warn('Firestore requests onSnapshot listener note:', err.message);
@@ -76,7 +74,6 @@ export function subscribeToProjects(onUpdate: (projects: Project[]) => void): Un
       if (dateB !== dateA) return dateB.localeCompare(dateA);
       return (b.projectCode || '').localeCompare(a.projectCode || '');
     });
-    // Pass updated list to sync creations, updates, and deletions immediately across all users
     onUpdate(list);
   }, (err) => {
     console.warn('Firestore projects onSnapshot listener note:', err.message);
@@ -140,18 +137,10 @@ export async function deleteProjectFromFirestore(id: string): Promise<void> {
 }
 
 /**
- * Initialize / Seed all data into Firebase Firestore on first boot only
+ * Wipe all sample mock data from Firebase Firestore and storage completely
  */
-export async function seedInitialDataToFirebase(
-  currentProjects: Project[], 
-  currentRequests: EngineerRequest[]
-): Promise<{ projectsUploaded: number; requestsUploaded: number }> {
+export async function clearAllSampleDataFromFirebase(): Promise<void> {
   try {
-    const alreadySeeded = localStorage.getItem(SEED_FLAG_KEY);
-    if (alreadySeeded) {
-      return { projectsUploaded: 0, requestsUploaded: 0 };
-    }
-
     const prjCol = collection(db, PROJECTS_COLLECTION);
     const reqCol = collection(db, REQUESTS_COLLECTION);
 
@@ -161,39 +150,46 @@ export async function seedInitialDataToFirebase(
     ]);
 
     const batch = writeBatch(db);
-    let prjCount = 0;
-    let reqCount = 0;
+    let deletedCount = 0;
 
-    // If projects collection in Firestore is empty
-    if (prjSnap.empty) {
-      const projectsToUpload = currentProjects.length > 0 ? currentProjects : INITIAL_PROJECTS;
-      for (const p of projectsToUpload) {
-        const d = doc(db, PROJECTS_COLLECTION, p.id);
-        batch.set(d, p);
-        prjCount++;
-      }
-    }
+    // Delete all projects from Firebase
+    prjSnap.forEach((d) => {
+      batch.delete(d.ref);
+      deletedCount++;
+    });
 
-    // If requests collection in Firestore is empty
-    if (reqSnap.empty) {
-      const requestsToUpload = currentRequests.length > 0 ? currentRequests : INITIAL_REQUESTS;
-      for (const r of requestsToUpload) {
-        const d = doc(db, REQUESTS_COLLECTION, r.id);
-        batch.set(d, r);
-        reqCount++;
-      }
-    }
+    // Delete all requests from Firebase
+    reqSnap.forEach((d) => {
+      batch.delete(d.ref);
+      deletedCount++;
+    });
 
-    if (prjCount > 0 || reqCount > 0) {
+    if (deletedCount > 0) {
       await batch.commit();
-      console.log(`Successfully initialized and seeded ${prjCount} projects and ${reqCount} requests to Firebase Firestore.`);
+      console.log(`[Firebase] Successfully cleared ${deletedCount} sample items from Firestore.`);
     }
 
-    localStorage.setItem(SEED_FLAG_KEY, 'true');
-    return { projectsUploaded: prjCount, requestsUploaded: reqCount };
+    localStorage.removeItem('lumencraft_master_projects_db_v2');
+    localStorage.removeItem('lumencraft_master_requests_db_v2');
+    localStorage.removeItem('lumencraft_backup_projects_db_v2');
+    localStorage.removeItem('lumencraft_backup_requests_db_v2');
+    localStorage.setItem(CLEAN_FLAG_KEY, 'true');
   } catch (err) {
-    console.error('Error seeding data to Firebase:', err);
-    return { projectsUploaded: 0, requestsUploaded: 0 };
+    console.error('Error clearing sample data from Firebase:', err);
+  }
+}
+
+/**
+ * Check and perform initial clean up of sample data on startup
+ */
+export async function ensureCleanDatabaseState(): Promise<void> {
+  try {
+    const isCleaned = localStorage.getItem(CLEAN_FLAG_KEY);
+    if (!isCleaned) {
+      await clearAllSampleDataFromFirebase();
+    }
+  } catch (e) {
+    console.warn('Initial cleanup note:', e);
   }
 }
 
@@ -215,7 +211,6 @@ export async function syncAllDataToFirebase(
       batch.set(d, r, { merge: true });
     }
     await batch.commit();
-    localStorage.setItem(SEED_FLAG_KEY, 'true');
 
     // Retrieve fresh snapshot from Firestore to guarantee 100% identical dataset
     const prjCol = collection(db, PROJECTS_COLLECTION);
@@ -232,8 +227,8 @@ export async function syncAllDataToFirebase(
     reqSnap.forEach(d => liveRequests.push(d.data() as EngineerRequest));
 
     return {
-      projects: liveProjects.length > 0 ? liveProjects : allProjects,
-      requests: liveRequests.length > 0 ? liveRequests : allRequests
+      projects: liveProjects,
+      requests: liveRequests
     };
   } catch (err) {
     console.error('Error syncing all data to Firebase:', err);
