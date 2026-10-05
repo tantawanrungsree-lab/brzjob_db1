@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "EngineerRequest": {
+      "title": "EngineerRequest",
+      "description": "Lumencraft Engineering service requests and field job orders",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique Request ID" },
+        "projectCode": { "type": "string", "description": "Associated Project Code" },
+        "jobName": { "type": "string", "description": "Title or Job Description" },
+        "client": { "type": "string", "description": "Client or Customer Name" },
+        "location": { "type": "string", "description": "Job site location" },
+        "assignedTo": { "type": "string", "description": "Engineer assigned" },
+        "status": { "type": "string", "description": "Current workflow status", "enum": ["Open", "In Progress", "Completed", "Cancelled"] },
+        "priority": { "type": "string", "description": "Priority level", "enum": ["Low", "Medium", "High", "Critical"] },
+        "requestDate": { "type": "string", "description": "Date requested" },
+        "requiredDate": { "type": "string", "description": "Target completion date" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" }
+      },
+      "required": ["id", "projectCode", "jobName", "client", "status"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Lumencraft BRZ Engineering projects database",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique Project ID" },
+        "projectCode": { "type": "string", "description": "Project Code" },
+        "soNumber": { "type": "string", "description": "Sales Order numbers comma-separated" },
+        "projectName": { "type": "string", "description": "Full project name" },
+        "customerName": { "type": "string", "description": "Customer or company name" },
+        "customerEmail": { "type": "string", "description": "Customer contact email" },
+        "customerPhone": { "type": "string", "description": "Customer phone" },
+        "engineerName": { "type": "string", "description": "Lead engineer name" },
+        "salesName": { "type": "string", "description": "Sales in charge" },
+        "status": { "type": "string", "description": "Project status", "enum": ["On Track", "In Progress", "At Risk", "Overdue", "On Hold", "Completed", "Planning"] },
+        "location": { "type": "string", "description": "Site address location" },
+        "description": { "type": "string", "description": "Scope of work and descriptions" },
+        "startDate": { "type": "string", "description": "Project kickoff date" },
+        "targetDate": { "type": "string", "description": "Project target handover date" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" }
+      },
+      "required": ["id", "projectCode", "projectName", "customerName", "status"]
+    }
+  },
+  "firestore": {
+    "/requests/{requestId}": {
+      "schema": "EngineerRequest",
+      "description": "Collection of all engineering job requests"
+    },
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of all BRZ engineering projects"
+    }
+  }
+}

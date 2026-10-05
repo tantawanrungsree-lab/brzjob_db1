@@ -1,0 +1,7 @@
+{
+  "name": "Lumencraft Engineering & Project Management System",
+  "description": "ระบบจัดการโครงการและใบคำของานวิศวกรรม Lumencraft Service Request ครบวงจรสำหรับ On Site, Meeting, Mock-Up, Site Survey, Installation, นับแบบ, Claim, QC",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

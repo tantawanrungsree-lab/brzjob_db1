@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Engineering Requests Collection
+    match /requests/{requestId} {
+      allow read, write: if true;
+    }
+    
+    // BRZ Projects Collection
+    match /projects/{projectId} {
+      allow read, write: if true;
+    }
+  }
+}
