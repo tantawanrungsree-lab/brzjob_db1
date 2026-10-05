@@ -198,12 +198,12 @@ export async function seedInitialDataToFirebase(
 }
 
 /**
- * Force sync all current local data to Firebase
+ * Force sync all current local data to Firebase and re-align both sides to 100% parity
  */
 export async function syncAllDataToFirebase(
   allProjects: Project[], 
   allRequests: EngineerRequest[]
-): Promise<void> {
+): Promise<{ projects: Project[]; requests: EngineerRequest[] }> {
   try {
     const batch = writeBatch(db);
     for (const p of allProjects) {
@@ -216,7 +216,27 @@ export async function syncAllDataToFirebase(
     }
     await batch.commit();
     localStorage.setItem(SEED_FLAG_KEY, 'true');
+
+    // Retrieve fresh snapshot from Firestore to guarantee 100% identical dataset
+    const prjCol = collection(db, PROJECTS_COLLECTION);
+    const reqCol = collection(db, REQUESTS_COLLECTION);
+    const [prjSnap, reqSnap] = await Promise.all([
+      getDocs(prjCol),
+      getDocs(reqCol)
+    ]);
+
+    const liveProjects: Project[] = [];
+    prjSnap.forEach(d => liveProjects.push(d.data() as Project));
+
+    const liveRequests: EngineerRequest[] = [];
+    reqSnap.forEach(d => liveRequests.push(d.data() as EngineerRequest));
+
+    return {
+      projects: liveProjects.length > 0 ? liveProjects : allProjects,
+      requests: liveRequests.length > 0 ? liveRequests : allRequests
+    };
   } catch (err) {
     console.error('Error syncing all data to Firebase:', err);
+    return { projects: allProjects, requests: allRequests };
   }
 }

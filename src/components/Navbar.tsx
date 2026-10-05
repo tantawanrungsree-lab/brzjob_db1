@@ -118,7 +118,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-500/20" />
             <div className="text-left font-mono">
               <div className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
-                <span>FIREBASE LIVE</span>
+                <span>FIREBASE: bbbrz</span>
+                <span className="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-800">
+                  LIVE CLOUD
+                </span>
               </div>
               <div className="text-[10px] text-slate-400 font-mono">
                 {requestCount} คำขอ • {projectCount} โครงการ

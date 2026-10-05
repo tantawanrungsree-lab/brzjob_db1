@@ -193,7 +193,13 @@ export default function App() {
   };
 
   const handleManualSyncAll = async () => {
-    await syncAllDataToFirebase(projects, requests);
+    const result = await syncAllDataToFirebase(projects, requests);
+    if (result) {
+      setProjects(result.projects);
+      setRequests(result.requests);
+      saveProjects(result.projects);
+      saveRequests(result.requests);
+    }
   };
 
   const handleResetData = () => {
@@ -363,7 +369,7 @@ export default function App() {
             </div>
             <div className="text-slate-400 font-mono text-[11px] flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-              <span>FIREBASE CLOUD DATABASE CONNECTED</span>
+              <span>FIREBASE CLOUD DATABASE CONNECTED (bbbrz)</span>
             </div>
           </div>
         </footer>
