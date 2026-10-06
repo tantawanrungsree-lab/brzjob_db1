@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { ActiveView, EngineerRequest, Project } from './types';
 import { 
   loadProjects, 
@@ -462,6 +463,9 @@ export default function App() {
           </div>
         </footer>
       )}
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
 
     </div>
   );
