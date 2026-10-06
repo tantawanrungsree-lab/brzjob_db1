@@ -5,7 +5,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { ActiveView, EngineerRequest, Project } from './types';
-import { loadProjects, saveProjects, loadRequests, saveRequests, resetAllData, mergeRequestData } from './utils/storage';
+import { 
+  loadProjects, 
+  saveProjects, 
+  loadRequests, 
+  saveRequests, 
+  resetAllData, 
+  mergeRequestData,
+  mergeRequestCollections,
+  mergeProjectCollections
+} from './utils/storage';
 import { 
   testFirestoreConnection, 
   subscribeToRequests, 
@@ -32,7 +41,7 @@ import { WorkdayDueAlertBanner } from './components/Notifications/WorkdayDueAler
 
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('home');
-  const [requestCategoryFilter, setRequestCategoryFilter] = useState<'all' | 'internal' | 'customer'>('all');
+  const [requestCategoryFilter, setRequestCategoryFilter] = useState<'all' | 'internal' | 'customer' | 'rejected'>('all');
   const [projects, setProjects] = useState<Project[]>(loadProjects);
   const [requests, setRequests] = useState<EngineerRequest[]>(loadRequests);
 
@@ -65,12 +74,40 @@ export default function App() {
     let unsubProjects: (() => void) | undefined;
 
     const pullFreshData = async () => {
-      const latest = await fetchLatestFromFirestore();
-      if (latest.projects.length > 0 || latest.requests.length > 0) {
-        setProjects(latest.projects);
-        setRequests(latest.requests);
-        saveProjects(latest.projects);
-        saveRequests(latest.requests);
+      try {
+        const latest = await fetchLatestFromFirestore();
+        
+        // Merge requests safely without dropping local or cloud items
+        const currentLocalRequests = loadRequests();
+        const { merged: mergedReqs, unsyncedToCloud: unsyncedReqs } = mergeRequestCollections(
+          currentLocalRequests, 
+          latest.requests
+        );
+        if (mergedReqs.length > 0) {
+          setRequests(mergedReqs);
+          saveRequests(mergedReqs);
+        }
+        // Upload any local-only requests to Firestore
+        for (const req of unsyncedReqs) {
+          saveRequestToFirestore(req);
+        }
+
+        // Merge projects safely
+        const currentLocalProjects = loadProjects();
+        const { merged: mergedProjs, unsyncedToCloud: unsyncedProjs } = mergeProjectCollections(
+          currentLocalProjects, 
+          latest.projects
+        );
+        if (mergedProjs.length > 0) {
+          setProjects(mergedProjs);
+          saveProjects(mergedProjs);
+        }
+        // Upload any local-only projects to Firestore
+        for (const proj of unsyncedProjs) {
+          saveProjectToFirestore(proj);
+        }
+      } catch (err) {
+        console.warn('pullFreshData sync note:', err);
       }
     };
 
@@ -78,21 +115,31 @@ export default function App() {
       // 1. Validate connection
       await testFirestoreConnection();
 
-      // 2. Fetch latest state from Firestore immediately
+      // 2. Fetch latest state from Firestore immediately & merge seamlessly
       await pullFreshData();
 
       // 3. Continuous real-time subscription across all users and logged-in emails
       unsubRequests = subscribeToRequests((firestoreRequests) => {
         if (Array.isArray(firestoreRequests)) {
-          setRequests(firestoreRequests);
-          saveRequests(firestoreRequests);
+          const currentLocal = loadRequests();
+          const { merged, unsyncedToCloud } = mergeRequestCollections(currentLocal, firestoreRequests);
+          setRequests(merged);
+          saveRequests(merged);
+          for (const req of unsyncedToCloud) {
+            saveRequestToFirestore(req);
+          }
         }
       });
 
       unsubProjects = subscribeToProjects((firestoreProjects) => {
         if (Array.isArray(firestoreProjects)) {
-          setProjects(firestoreProjects);
-          saveProjects(firestoreProjects);
+          const currentLocal = loadProjects();
+          const { merged, unsyncedToCloud } = mergeProjectCollections(currentLocal, firestoreProjects);
+          setProjects(merged);
+          saveProjects(merged);
+          for (const proj of unsyncedToCloud) {
+            saveProjectToFirestore(proj);
+          }
         }
       });
     };

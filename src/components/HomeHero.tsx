@@ -9,7 +9,7 @@ import {
 
 interface HomeHeroProps {
   onNavigate: (view: ActiveView) => void;
-  onNavigateToRequests?: (category: 'all' | 'internal' | 'customer') => void;
+  onNavigateToRequests?: (category: 'all' | 'internal' | 'customer' | 'rejected') => void;
   requests: EngineerRequest[];
   projects: Project[];
   onOpenRequest: (req: EngineerRequest) => void;
@@ -31,9 +31,11 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
   const openRequests = requests.filter(r => r.status === 'Open');
   const inProgressRequests = requests.filter(r => r.status === 'In Progress');
   const completedRequests = requests.filter(r => r.status === 'Completed');
+  const rejectedRequests = requests.filter(r => r.status === 'Rejected');
 
-  const internalRequests = requests.filter(r => r.requestCategory === 'internal');
-  const customerRequests = requests.filter(r => r.requestCategory === 'customer' || !r.requestCategory);
+  const activeRequests = requests.filter(r => r.status !== 'Rejected');
+  const internalRequests = activeRequests.filter(r => r.requestCategory === 'internal');
+  const customerRequests = activeRequests.filter(r => r.requestCategory === 'customer' || !r.requestCategory);
 
   // Total expenses across all projects
   const grandTotalExpenses = projects.reduce((sum, p) => {
@@ -44,7 +46,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
     return sum + (logSum > directSum ? logSum : directSum);
   }, 0);
 
-  const handleSelectCategory = (cat: 'all' | 'internal' | 'customer') => {
+  const handleSelectCategory = (cat: 'all' | 'internal' | 'customer' | 'rejected') => {
     setShowChoiceModal(false);
     onNavigateToRequests(cat);
   };
@@ -493,14 +495,41 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
                     </div>
                     <div>
                       <span className="text-xs font-bold text-slate-800">
-                        ดูตารางคำขอทั้งหมด (All Requests Master Sheet)
+                        ดูตารางคำขอทั้งหมด (All Active Requests)
                       </span>
                       <span className="text-[11px] text-slate-500 block">
-                        แสดงข้อมูลคำของานวิศวกรรมรวมทั้งหมดทุกหมวด ({requests.length} คำขอ)
+                        แสดงข้อมูลคำของานวิศวกรรมรวมทั้งหมด ({activeRequests.length} คำขอ)
                       </span>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform" />
+                </button>
+
+                {/* OPTION 4: Rejected Requests (คำขอที่ถูกปฏิเสธ) */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('rejected')}
+                  className="p-3.5 rounded-2xl border border-red-200 hover:border-red-400 bg-red-50/50 hover:bg-red-50 text-left transition-all flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-red-700 text-white flex items-center justify-center font-bold shrink-0">
+                      <X className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-red-950">
+                          ดูคำขอที่ถูกปฏิเสธ (Rejected Requests Archive)
+                        </span>
+                        <span className="text-[10px] font-mono font-bold bg-red-200 text-red-900 px-2 py-0.2 rounded-full">
+                          {rejectedRequests.length} คำขอ
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-red-700/80 block">
+                        จัดเก็บประวัติคำขอที่ถูกปฏิเสธพร้อมเหตุผล และสามารถเปิดพิจารณารับงานใหม่ได้
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-red-600 group-hover:translate-x-1 transition-transform" />
                 </button>
 
               </div>

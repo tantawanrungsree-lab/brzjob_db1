@@ -117,6 +117,99 @@ export function mergeRequestData(existingReq: EngineerRequest, updatedReq: Parti
 }
 
 /**
+ * Non-destructive collection merger for Requests
+ * Merges local and remote lists by ID, preserving all records (old & new)
+ */
+export function mergeRequestCollections(
+  localList: EngineerRequest[], 
+  cloudList: EngineerRequest[]
+): { merged: EngineerRequest[]; unsyncedToCloud: EngineerRequest[] } {
+  const map = new Map<string, EngineerRequest>();
+  const unsyncedToCloud: EngineerRequest[] = [];
+
+  // 1. Add all cloud items
+  for (const item of cloudList) {
+    if (item && item.id) {
+      map.set(item.id, item);
+    }
+  }
+
+  // 2. Merge local items: if not in cloud, keep it and flag to push to cloud
+  for (const item of localList) {
+    if (item && item.id) {
+      if (!map.has(item.id)) {
+        map.set(item.id, item);
+        unsyncedToCloud.push(item);
+      } else {
+        // Both exist: check timestamps or merge non-destructively
+        const cloudItem = map.get(item.id)!;
+        const localTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+        const cloudTime = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
+        if (localTime > cloudTime) {
+          map.set(item.id, { ...cloudItem, ...item });
+          unsyncedToCloud.push({ ...cloudItem, ...item });
+        }
+      }
+    }
+  }
+
+  const merged = Array.from(map.values()).sort((a, b) => {
+    const dateA = a.createdAt || a.dateRequest || '';
+    const dateB = b.createdAt || b.dateRequest || '';
+    if (dateB !== dateA) return dateB.localeCompare(dateA);
+    return (b.documentNo || '').localeCompare(a.documentNo || '');
+  });
+
+  return { merged, unsyncedToCloud };
+}
+
+/**
+ * Non-destructive collection merger for Projects
+ * Merges local and remote lists by ID, preserving all records (old & new)
+ */
+export function mergeProjectCollections(
+  localList: Project[], 
+  cloudList: Project[]
+): { merged: Project[]; unsyncedToCloud: Project[] } {
+  const map = new Map<string, Project>();
+  const unsyncedToCloud: Project[] = [];
+
+  // 1. Add all cloud items
+  for (const item of cloudList) {
+    if (item && item.id) {
+      map.set(item.id, item);
+    }
+  }
+
+  // 2. Merge local items
+  for (const item of localList) {
+    if (item && item.id) {
+      if (!map.has(item.id)) {
+        map.set(item.id, item);
+        unsyncedToCloud.push(item);
+      } else {
+        const cloudItem = map.get(item.id)!;
+        const localTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+        const cloudTime = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
+        if (localTime > cloudTime) {
+          map.set(item.id, { ...cloudItem, ...item });
+          unsyncedToCloud.push({ ...cloudItem, ...item });
+        }
+      }
+    }
+  }
+
+  const merged = Array.from(map.values()).sort((a, b) => {
+    const dateA = a.createdAt || a.startDate || '';
+    const dateB = b.createdAt || b.startDate || '';
+    if (dateB !== dateA) return dateB.localeCompare(dateA);
+    return (b.projectCode || '').localeCompare(a.projectCode || '');
+  });
+
+  return { merged, unsyncedToCloud };
+}
+
+/**
  * Reset all data to clean empty state
  */
 export function resetAllData(): { projects: Project[]; requests: EngineerRequest[] } {

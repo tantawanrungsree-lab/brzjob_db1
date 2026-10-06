@@ -14,7 +14,7 @@ import { EngineerJobActionModal } from './EngineerJobActionModal';
 
 interface RequestListProps {
   requests: EngineerRequest[];
-  initialCategory?: 'all' | 'internal' | 'customer';
+  initialCategory?: 'all' | 'internal' | 'customer' | 'rejected';
   onAddNew: () => void;
   onEdit: (req: EngineerRequest) => void;
   onPrint: (req: EngineerRequest) => void;
@@ -34,7 +34,7 @@ export const RequestList: React.FC<RequestListProps> = ({
   onSaveRequest = () => {}
 }) => {
   const [viewMode, setViewMode] = useState<'table' | 'calendar' | 'engineer_portal'>('table');
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'internal' | 'customer'>(initialCategory);
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'internal' | 'customer' | 'rejected'>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJobType, setSelectedJobType] = useState<JobTypeKey | 'all'>('all');
   const [selectedStatus, setSelectedStatus] = useState<RequestStatus | 'all'>('all');
@@ -55,8 +55,10 @@ export const RequestList: React.FC<RequestListProps> = ({
   const engineers = Array.from(new Set(requests.map(r => r.engineerStaff).filter(Boolean)));
 
   // Extract Category counts
-  const internalRequests = requests.filter(r => r.requestCategory === 'internal');
-  const customerRequests = requests.filter(r => r.requestCategory === 'customer' || !r.requestCategory);
+  const rejectedRequests = requests.filter(r => r.status === 'Rejected');
+  const activeRequests = requests.filter(r => r.status !== 'Rejected');
+  const internalRequests = activeRequests.filter(r => r.requestCategory === 'internal');
+  const customerRequests = activeRequests.filter(r => r.requestCategory === 'customer' || !r.requestCategory);
 
   // Filter requests
   const filteredRequests = requests.filter(req => {
@@ -71,12 +73,22 @@ export const RequestList: React.FC<RequestListProps> = ({
       req.engineerStaff.toLowerCase().includes(q) ||
       req.salesInCharge.toLowerCase().includes(q) ||
       (req.location && req.location.toLowerCase().includes(q)) ||
+      (req.rejectionReason && req.rejectionReason.toLowerCase().includes(q)) ||
       req.requestDetails.toLowerCase().includes(q);
 
-    const matchCategory =
-      selectedCategory === 'all' ||
-      (selectedCategory === 'internal' && req.requestCategory === 'internal') ||
-      (selectedCategory === 'customer' && (req.requestCategory === 'customer' || !req.requestCategory));
+    let matchCategory = true;
+    if (selectedCategory === 'rejected') {
+      matchCategory = req.status === 'Rejected';
+    } else {
+      const notRejected = req.status !== 'Rejected';
+      if (selectedCategory === 'all') {
+        matchCategory = notRejected;
+      } else if (selectedCategory === 'internal') {
+        matchCategory = notRejected && req.requestCategory === 'internal';
+      } else if (selectedCategory === 'customer') {
+        matchCategory = notRejected && (req.requestCategory === 'customer' || !req.requestCategory);
+      }
+    }
 
     const matchJobType = 
       selectedJobType === 'all' || 
@@ -227,6 +239,28 @@ export const RequestList: React.FC<RequestListProps> = ({
               <span>ปฏิทินงาน</span>
             </button>
 
+            {/* BUTTON 5: คำขอที่ถูกปฏิเสธ (Rejected Requests Archive) */}
+            <button
+              onClick={() => {
+                setSelectedCategory('rejected');
+                setViewMode('table');
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all border shadow-xs cursor-pointer ${
+                selectedCategory === 'rejected' && viewMode === 'table'
+                  ? 'bg-red-700 text-white border-red-800 ring-2 ring-red-500/30'
+                  : 'bg-red-50 text-red-900 border-red-200 hover:bg-red-100'
+              }`}
+              title="ดูรายการคำขอที่ถูก Reject ทั้งหมด"
+            >
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>คำขอที่ถูกปฏิเสธ (Rejected)</span>
+              {rejectedRequests.length > 0 && (
+                <span className="px-1.5 py-0.2 bg-red-600 text-white rounded-full text-[10px] font-mono font-bold">
+                  {rejectedRequests.length}
+                </span>
+              )}
+            </button>
+
           </div>
 
           {/* Right Side Tools */}
@@ -282,14 +316,14 @@ export const RequestList: React.FC<RequestListProps> = ({
       {viewMode === 'table' && (
         <div className="space-y-3.5 w-full">
           
-          {/* Master Sheet Scope Tabs: All vs Internal Request vs Customer Request */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-slate-200/80 p-1.5 rounded-2xl border border-slate-300 shadow-inner">
+          {/* Master Sheet Scope Tabs: All vs Internal Request vs Customer Request vs Rejected Requests */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-slate-200/80 p-1.5 rounded-2xl border border-slate-300 shadow-inner">
             
             {/* TAB 1: ALL REQUESTS */}
             <button
               type="button"
               onClick={() => setSelectedCategory('all')}
-              className={`flex items-center justify-between px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                 selectedCategory === 'all'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-300 ring-2 ring-slate-400/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -297,10 +331,10 @@ export const RequestList: React.FC<RequestListProps> = ({
             >
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-slate-800" />
-                <span>ตารางคำขอทั้งหมด (All Requests)</span>
+                <span>ตารางคำขอทั้งหมด</span>
               </div>
               <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300">
-                {requests.length}
+                {activeRequests.length}
               </span>
             </button>
 
@@ -308,7 +342,7 @@ export const RequestList: React.FC<RequestListProps> = ({
             <button
               type="button"
               onClick={() => setSelectedCategory('internal')}
-              className={`flex items-center justify-between px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                 selectedCategory === 'internal'
                   ? 'bg-amber-500 text-slate-950 shadow-sm border border-amber-600 ring-2 ring-amber-400/30'
                   : 'text-amber-900 hover:text-amber-950 hover:bg-amber-100 bg-amber-50/60'
@@ -316,7 +350,7 @@ export const RequestList: React.FC<RequestListProps> = ({
             >
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-950" />
-                <span className="truncate">Internal request (คำขอภายใน)</span>
+                <span className="truncate">Internal request</span>
               </div>
               <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 border border-amber-300">
                 {internalRequests.length}
@@ -327,7 +361,7 @@ export const RequestList: React.FC<RequestListProps> = ({
             <button
               type="button"
               onClick={() => setSelectedCategory('customer')}
-              className={`flex items-center justify-between px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                 selectedCategory === 'customer'
                   ? 'bg-blue-600 text-white shadow-sm border border-blue-700 ring-2 ring-blue-500/30'
                   : 'text-blue-900 hover:text-blue-950 hover:bg-blue-100 bg-blue-50/60'
@@ -335,10 +369,29 @@ export const RequestList: React.FC<RequestListProps> = ({
             >
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-white" />
-                <span className="truncate">Customer request (คำขอลูกค้า)</span>
+                <span className="truncate">Customer request</span>
               </div>
               <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-blue-200 text-blue-950 border border-blue-300">
                 {customerRequests.length}
+              </span>
+            </button>
+
+            {/* TAB 4: REJECTED REQUESTS (คำขอถูกปฏิเสธ) */}
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('rejected')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                selectedCategory === 'rejected'
+                  ? 'bg-red-700 text-white shadow-sm border border-red-800 ring-2 ring-red-500/30'
+                  : 'text-red-900 hover:text-red-950 hover:bg-red-100 bg-red-50/60'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="truncate">คำขอถูกปฏิเสธ (Rejected)</span>
+              </div>
+              <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-red-200 text-red-950 border border-red-300 font-bold">
+                {rejectedRequests.length}
               </span>
             </button>
 
@@ -347,17 +400,19 @@ export const RequestList: React.FC<RequestListProps> = ({
           {/* Main Excel Sheet Container */}
           <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden flex flex-col w-full">
             
-            {/* Excel Ribbon / Green Header Bar */}
+            {/* Excel Ribbon / Header Bar with Dynamic Styling */}
             <div className={`text-white px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner ${
               selectedCategory === 'internal'
                 ? 'bg-[#b45309]'
                 : selectedCategory === 'customer'
                 ? 'bg-[#1d4ed8]'
+                : selectedCategory === 'rejected'
+                ? 'bg-[#991b1b]'
                 : 'bg-[#107c41]'
             }`}>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-white/20 text-white font-bold flex items-center justify-center font-mono text-sm border border-white/30">
-                  XL
+                  {selectedCategory === 'rejected' ? 'REJ' : 'XL'}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -366,6 +421,8 @@ export const RequestList: React.FC<RequestListProps> = ({
                         ? 'ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet) Internal request'
                         : selectedCategory === 'customer'
                         ? 'ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet) Customer request'
+                        : selectedCategory === 'rejected'
+                        ? 'ตารางข้อมูลคำของานวิศวกรรมที่ถูกปฏิเสธ (Rejected Requests Archive)'
                         : 'ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet)'}
                     </h2>
                     <span className="text-[11px] bg-black/30 text-white px-2 py-0.5 rounded font-mono border border-white/20">
@@ -568,6 +625,15 @@ export const RequestList: React.FC<RequestListProps> = ({
                               📝 {req.requestDetails}
                             </div>
                           )}
+                          {req.status === 'Rejected' && req.rejectionReason && (
+                            <div className="mt-1.5 p-1.5 bg-red-50 text-red-900 border border-red-200 rounded-lg text-[10px] font-medium leading-tight">
+                              <span className="font-bold text-red-700 block flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 text-red-600" />
+                                <span>เหตุผลที่ Reject:</span>
+                              </span>
+                              <span>{req.rejectionReason}</span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Customer & Tel */}
@@ -690,11 +756,11 @@ export const RequestList: React.FC<RequestListProps> = ({
                                 setSelectedRequestForAction(req);
                                 setIsActionModalOpen(true);
                               }}
-                              className="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-900 font-bold text-[10px] rounded-xl border border-red-300 flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                              title={req.rejectionReason || 'งานถูก Reject'}
+                              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded-xl shadow-xs flex items-center justify-center gap-1.5 mx-auto cursor-pointer transition-all active:scale-95"
+                              title="คลิกเพื่อเปิดพิจารณาใหม่ / กดรับงานใหม่ หรือแก้ไขวันที่และวิศวกร"
                             >
-                              <span>❌ Rejected</span>
-                              <span className="text-[9px] underline">(ดูเหตุผล)</span>
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>เปิดรับงานใหม่</span>
                             </button>
                           ) : (
                             <button

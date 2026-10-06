@@ -32,8 +32,8 @@ export const ProjectModalForm: React.FC<ProjectModalFormProps> = ({
     customerName: '',
     customerEmail: '',
     customerPhone: '',
-    engineerName: 'ธนากร ศรีสวัสดิ์ (Eng. Ton)',
-    salesName: 'กัญญาภัทร ชาญวิทย์ (Sales Jane)',
+    engineerName: '',
+    salesName: '',
     status: 'In Progress',
     location: '',
     description: '',
@@ -353,7 +353,7 @@ export const ProjectModalForm: React.FC<ProjectModalFormProps> = ({
                     required
                     value={formData.engineerName}
                     onChange={(e) => setFormData({ ...formData, engineerName: e.target.value })}
-                    placeholder="e.g. ธนากร ศรีสวัสดิ์ (Eng. Ton)"
+                    placeholder="ระบุชื่อวิศวกรผู้รับผิดชอบงาน"
                     className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -365,7 +365,7 @@ export const ProjectModalForm: React.FC<ProjectModalFormProps> = ({
                     required
                     value={formData.salesName}
                     onChange={(e) => setFormData({ ...formData, salesName: e.target.value })}
-                    placeholder="e.g. กัญญาภัทร ชาญวิทย์ (Sales Jane)"
+                    placeholder="ระบุชื่อเซลล์ผู้รับผิดชอบงาน"
                     className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>

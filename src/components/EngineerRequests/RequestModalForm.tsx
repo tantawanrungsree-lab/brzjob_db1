@@ -675,7 +675,7 @@ export const RequestModalForm: React.FC<RequestModalFormProps> = ({
                       type="text"
                       value={formData.salesInCharge}
                       onChange={(e) => setFormData({ ...formData, salesInCharge: e.target.value })}
-                      placeholder="e.g. กัญญาภัทร (Sales Jane)"
+                      placeholder="ระบุชื่อเซลล์ผู้รับผิดชอบงาน"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-slate-900"
                     />
                   </div>
@@ -685,7 +685,7 @@ export const RequestModalForm: React.FC<RequestModalFormProps> = ({
                       type="text"
                       value={formData.requester}
                       onChange={(e) => setFormData({ ...formData, requester: e.target.value })}
-                      placeholder="e.g. คุณสมชาย ธนาทรัพย์"
+                      placeholder="ระบุชื่อผู้แจ้งคำขอ"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-slate-900"
                     />
                   </div>
@@ -697,7 +697,7 @@ export const RequestModalForm: React.FC<RequestModalFormProps> = ({
                       required
                       value={formData.engineerStaff}
                       onChange={(e) => setFormData({ ...formData, engineerStaff: e.target.value })}
-                      placeholder="e.g. ธนากร ศรีสวัสดิ์ (Eng. Ton)"
+                      placeholder="ระบุชื่อวิศวกรผู้รับผิดชอบงาน"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-slate-900"
                     />
                   </div>
