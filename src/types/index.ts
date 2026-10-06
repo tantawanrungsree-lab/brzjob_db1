@@ -110,7 +110,7 @@ export const JOB_TYPE_CONFIG: Record<JobTypeKey, { labelTh: string; labelEn: str
 };
 
 export type PriorityLevel = 'Normal' | 'Urgent' | 'Critical';
-export type RequestStatus = 'Open' | 'In Progress' | 'Completed';
+export type RequestStatus = 'Open' | 'In Progress' | 'Completed' | 'Rejected';
 export type ProjectStatus = 'On Track' | 'At Risk' | 'Overdue' | 'On Hold' | 'Completed' | 'In Progress' | 'Planning' | 'Under Service';
 
 export const PROJECT_STATUS_CONFIG: Record<string, { labelTh: string; labelEn: string; bgGradient: string; badgeClass: string; dotClass: string }> = {
@@ -287,6 +287,13 @@ export interface EngineerRequest {
     sales: SignOffPerson;
     customer: SignOffPerson;
   };
+
+  // Engineer Job Assignment & Schedule Dispatch
+  onSiteDate?: string;         // วันเข้าหน้างาน
+  deliveryDate?: string;       // วันส่งงาน
+  rejectionReason?: string;    // เหตุผลการปฏิเสธ / Reject งาน
+  rejectedAt?: string;
+  acceptedAt?: string;
 
   createdAt: string;
   updatedAt: string;

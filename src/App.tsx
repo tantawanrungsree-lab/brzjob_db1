@@ -28,6 +28,7 @@ import { ServiceRequestPrintDocument } from './components/EngineerRequests/Servi
 import { ProjectList } from './components/Projects/ProjectList';
 import { ProjectModalForm } from './components/Projects/ProjectModalForm';
 import { ProjectDetailModal } from './components/Projects/ProjectDetailModal';
+import { WorkdayDueAlertBanner } from './components/Notifications/WorkdayDueAlertBanner';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('home');
@@ -260,6 +261,19 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-[99%] mx-auto w-full px-3 sm:px-6 lg:px-8 py-6">
+        
+        {/* Universal 1-Workday Advance Alert Banner (Shown across all views) */}
+        {activeView !== 'print-request' && (
+          <WorkdayDueAlertBanner
+            requests={requests}
+            projects={projects}
+            onSelectRequest={handleEditRequest}
+            onSelectProject={(p) => {
+              setViewingProject(p);
+              setActiveView('projects');
+            }}
+          />
+        )}
         
         {/* VIEW 1: HOME DASHBOARD */}
         {activeView === 'home' && (

@@ -10,6 +10,7 @@ import {
 import { RequestCalendar } from './RequestCalendar';
 import { EngineerJobPortal } from './EngineerJobPortal';
 import { RequestTablePrintPreview } from './RequestTablePrintPreview';
+import { EngineerJobActionModal } from './EngineerJobActionModal';
 
 interface RequestListProps {
   requests: EngineerRequest[];
@@ -40,6 +41,8 @@ export const RequestList: React.FC<RequestListProps> = ({
   const [selectedPriority, setSelectedPriority] = useState<PriorityLevel | 'all'>('all');
   const [selectedEngineer, setSelectedEngineer] = useState<string>('all');
   const [showTablePrintPreview, setShowTablePrintPreview] = useState(false);
+  const [selectedRequestForAction, setSelectedRequestForAction] = useState<EngineerRequest | null>(null);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
 
   // Sync category if prop changes
   React.useEffect(() => {
@@ -498,9 +501,12 @@ export const RequestList: React.FC<RequestListProps> = ({
                     <th className="py-2.5 px-3 min-w-[150px]">Site Location (สถานที่หน้างาน)</th>
                     <th className="py-2.5 px-3 min-w-[160px]">Job Types (ประเภทงาน)</th>
                     <th className="py-2.5 px-3 min-w-[140px]">Engineer & Sales</th>
-                    <th className="py-2.5 px-3 min-w-[95px] text-center">Due Date</th>
+                    <th className="py-2.5 px-3 text-center min-w-[95px]">Due Date</th>
                     <th className="py-2.5 px-3 text-center min-w-[90px]">Priority</th>
                     <th className="py-2.5 px-3 text-center min-w-[110px]">Status</th>
+                    <th className="py-2.5 px-3 text-center min-w-[150px] bg-amber-100/70 text-amber-950 font-extrabold border-x border-amber-300">
+                      ⚡ กดรับงาน / จัดการ
+                    </th>
                     <th className="py-2.5 px-3 text-center min-w-[110px]">การจัดการ</th>
                   </tr>
                 </thead>
@@ -648,15 +654,69 @@ export const RequestList: React.FC<RequestListProps> = ({
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               : req.status === 'In Progress'
                               ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                              : req.status === 'Rejected'
+                              ? 'bg-red-100 text-red-800 border border-red-200'
                               : 'bg-amber-100 text-amber-800 border border-amber-300'
                           }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${
                               req.status === 'Completed' ? 'bg-emerald-500' :
                               req.status === 'In Progress' ? 'bg-blue-500' :
+                              req.status === 'Rejected' ? 'bg-red-500' :
                               'bg-amber-500'
                             }`} />
                             <span>{req.status}</span>
                           </span>
+                        </td>
+
+                        {/* Engineer Job Acceptance & Dispatch Column */}
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap bg-amber-50/40 border-x border-amber-200/80">
+                          {req.status === 'Open' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedRequestForAction(req);
+                                setIsActionModalOpen(true);
+                              }}
+                              className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-extrabold text-[11px] rounded-xl shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer animate-pulse mx-auto"
+                              title="คลิกเพื่อเลือก Engineer, วันส่งงาน, วันเข้าหน้างาน หรือ Reject งาน"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              <span>กดรับงาน (Accept)</span>
+                            </button>
+                          ) : req.status === 'Rejected' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedRequestForAction(req);
+                                setIsActionModalOpen(true);
+                              }}
+                              className="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-900 font-bold text-[10px] rounded-xl border border-red-300 flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                              title={req.rejectionReason || 'งานถูก Reject'}
+                            >
+                              <span>❌ Rejected</span>
+                              <span className="text-[9px] underline">(ดูเหตุผล)</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedRequestForAction(req);
+                                setIsActionModalOpen(true);
+                              }}
+                              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 font-bold text-[10px] rounded-xl border border-slate-300 flex items-center justify-center gap-1 mx-auto shadow-xs cursor-pointer"
+                              title="คลิกเพื่อเปลี่ยน Engineer หรือปรับปรุงวันส่งมอบ/เข้าหน้างาน"
+                            >
+                              <span>🛠️ จัดการ/เปลี่ยนวัน</span>
+                            </button>
+                          )}
+
+                          {/* Show Scheduled On-site or Delivery date below */}
+                          {(req.onSiteDate || req.deliveryDate) && (
+                            <div className="text-[9px] font-mono text-slate-600 mt-1 space-y-0.5">
+                              {req.onSiteDate && <div>เข้างาน: {req.onSiteDate}</div>}
+                              {req.deliveryDate && <div className="text-blue-700 font-bold">ส่งงาน: {req.deliveryDate}</div>}
+                            </div>
+                          )}
                         </td>
 
                         {/* Actions */}
@@ -695,7 +755,7 @@ export const RequestList: React.FC<RequestListProps> = ({
 
                   {filteredRequests.length === 0 && (
                     <tr>
-                      <td colSpan={12} className="py-12 text-center text-slate-400 bg-white">
+                      <td colSpan={13} className="py-12 text-center text-slate-400 bg-white">
                         <div className="max-w-xs mx-auto space-y-2">
                           <p className="text-sm font-semibold text-slate-600">ไม่พบรายการคำขอตามเงื่อนไขที่เลือก</p>
                           <p className="text-xs text-slate-400">ลองเปลี่ยนตัวกรองประเภทงาน หรือล้างคำค้นหา</p>
@@ -737,6 +797,21 @@ export const RequestList: React.FC<RequestListProps> = ({
           onClose={() => setShowTablePrintPreview(false)}
         />
       )}
+
+      {/* Engineer Job Action Pop-up Modal */}
+      <EngineerJobActionModal
+        isOpen={isActionModalOpen}
+        onClose={() => {
+          setIsActionModalOpen(false);
+          setSelectedRequestForAction(null);
+        }}
+        request={selectedRequestForAction}
+        onSave={(updated) => {
+          onSaveRequest(updated);
+          setIsActionModalOpen(false);
+          setSelectedRequestForAction(null);
+        }}
+      />
     </div>
   );
 };
