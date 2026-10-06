@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActiveView } from '../types';
 import { 
-  ArrowLeft, Cloud, Check, RefreshCw, LogIn, LogOut, User, Shield, BookOpen
+  ArrowLeft, Cloud, Check, RefreshCw, LogIn, LogOut, User, Shield
 } from 'lucide-react';
 import { AppUser } from '../services/auth';
 
@@ -73,66 +73,34 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </button>
 
-          {/* Navigation Area */}
-          <div className="flex items-center gap-2">
-            {activeView !== 'home' && (
+          {/* Navigation Area: Hidden on Home page; Shown on other subpages */}
+          {activeView !== 'home' && (
+            <nav className="flex items-center gap-2 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
               <button
                 onClick={() => setActiveView('home')}
-                className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-md font-extrabold active:scale-95 cursor-pointer"
+                className="px-5 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-md font-extrabold active:scale-95 cursor-pointer"
               >
-                <ArrowLeft className="w-4 h-4 text-slate-950" />
-                <span>หน้าหลัก (Home)</span>
+                <ArrowLeft className="w-5 h-5 text-slate-950" />
+                <span>← กลับหน้าหลัก (Home)</span>
               </button>
-            )}
-            
-            <button
-              onClick={() => setActiveView('customer-guide')}
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 border cursor-pointer ${
-                activeView === 'customer-guide'
-                  ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md'
-                  : 'bg-slate-800/90 text-amber-300 hover:bg-slate-800 border-amber-500/30'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>คู่มือลูกค้า (Customer Guide)</span>
-            </button>
-          </div>
+            </nav>
+          )}
         </div>
 
-        {/* Right Executive Status Indicator, User Profile & Firebase Sync Badge */}
+        {/* Right Executive Status Indicator, User Profile & Firebase Live Auto-Sync Badge */}
         <div className="flex items-center gap-3">
           
-          {/* Firebase Database Sync Button */}
-          {onSyncToFirebase && (
-            <button
-              onClick={handleManualSync}
-              disabled={isSyncing}
-              title="กดเพื่ออัปโหลดและซิงก์ข้อมูลทั้งหมดลง Firebase"
-              className={`hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border shadow-sm ${
-                syncSuccess
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                  : 'bg-slate-800/80 text-amber-300 hover:bg-slate-800 border-amber-500/30 active:scale-95'
-              }`}
-            >
-              {isSyncing ? (
-                <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
-              ) : syncSuccess ? (
-                <Check className="w-4 h-4 text-emerald-400" />
-              ) : (
-                <Cloud className="w-4 h-4 text-amber-400" />
-              )}
-              <span>{isSyncing ? 'กำลังบันทึก...' : syncSuccess ? 'ซิงก์สำเร็จ!' : 'ซิงก์ Firebase'}</span>
-            </button>
-          )}
-
-          {/* Cloud Database Connected Pill */}
-          <div className="hidden xl:flex items-center gap-3.5 bg-slate-950/70 px-4 py-2 rounded-2xl border border-slate-800">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-500/20" />
+          {/* Cloud Database Connected & Continuous Auto-Sync Pill */}
+          <div className="hidden md:flex items-center gap-3.5 bg-slate-950/80 px-4 py-2 rounded-2xl border border-slate-800 shadow-inner">
+            <div className="relative flex items-center justify-center">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="absolute w-4 h-4 rounded-full bg-emerald-500/30 animate-ping" />
+            </div>
             <div className="text-left font-mono">
               <div className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
                 <span>FIREBASE: bbbrz</span>
-                <span className="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-800">
-                  LIVE CLOUD
+                <span className="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-800 font-bold">
+                  AUTO-SYNC
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 font-mono">
