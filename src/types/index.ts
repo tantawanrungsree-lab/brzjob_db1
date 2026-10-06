@@ -192,12 +192,15 @@ export interface SignOffPerson {
   signatureData?: string;
 }
 
+export type RequestCategory = 'internal' | 'customer';
+
 export interface EngineerRequest {
   id: string;
   documentNo: string;
   serviceNo: string;
   dateRequest: string;
   revision: string;
+  requestCategory?: RequestCategory; // 'internal' for Internal Request or 'customer' for Customer Request
   
   // 01 General Info / Project Control
   projectId: string;

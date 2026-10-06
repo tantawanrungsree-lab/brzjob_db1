@@ -46,6 +46,7 @@ export const RequestModalForm: React.FC<RequestModalFormProps> = ({
       serviceNo: `SR-${String(Math.floor(Math.random() * 900) + 100)}`,
       dateRequest: today,
       revision: '0',
+      requestCategory: 'customer',
       projectId: defaultProj?.id || '',
       projectCode: defaultProj?.projectCode || '',
       projectName: defaultProj?.projectName || '',
@@ -471,6 +472,70 @@ export const RequestModalForm: React.FC<RequestModalFormProps> = ({
                         <option key={p.id} value={p.id}>{p.projectCode} - {p.projectName}</option>
                       ))}
                     </select>
+                  </div>
+                </div>
+
+                {/* Request Category Selector (Internal vs Customer Request) */}
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200">
+                  <label className="block text-xs font-bold text-slate-800 mb-2">
+                    หมวดหมู่คำขอ (Request Scope / Category) *
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        formData.requestCategory === 'customer' || !formData.requestCategory
+                          ? 'bg-blue-50/70 border-blue-500 text-blue-900 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="requestCategory"
+                        value="customer"
+                        checked={formData.requestCategory === 'customer' || !formData.requestCategory}
+                        onChange={() => setFormData({ ...formData, requestCategory: 'customer' })}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <div className="font-bold text-xs flex items-center gap-1.5">
+                          <span>🏢 Customer Request</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-200 text-blue-800 font-semibold">
+                            คำขอจากลูกค้า
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          งานบริการลูกค้า, ติดตั้ง, Site Survey, Mock-Up, Claim, ซ่อมบำรุงหน้างาน
+                        </p>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        formData.requestCategory === 'internal'
+                          ? 'bg-amber-50/70 border-amber-500 text-amber-900 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="requestCategory"
+                        value="internal"
+                        checked={formData.requestCategory === 'internal'}
+                        onChange={() => setFormData({ ...formData, requestCategory: 'internal' })}
+                        className="w-4 h-4 text-amber-600 focus:ring-amber-500"
+                      />
+                      <div>
+                        <div className="font-bold text-xs flex items-center gap-1.5">
+                          <span>📋 Internal Request</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-200 text-amber-800 font-semibold">
+                            คำขอภายในบริษัท
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          งานคำนวณแบบ, นับแบบ Take-off, ทดสอบ QC ในแล็บ, ประชุมภายใน, นำเสนอเทคนิค
+                        </p>
+                      </div>
+                    </label>
                   </div>
                 </div>
 

@@ -10,11 +10,11 @@ import {
   testFirestoreConnection, 
   subscribeToRequests, 
   subscribeToProjects, 
+  fetchLatestFromFirestore,
   saveRequestToFirestore, 
   deleteRequestFromFirestore, 
   saveProjectToFirestore, 
   deleteProjectFromFirestore, 
-  ensureCleanDatabaseState,
   clearAllSampleDataFromFirebase,
   syncAllDataToFirebase
 } from './services/firebase';
@@ -31,6 +31,7 @@ import { ProjectDetailModal } from './components/Projects/ProjectDetailModal';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('home');
+  const [requestCategoryFilter, setRequestCategoryFilter] = useState<'all' | 'internal' | 'customer'>('all');
   const [projects, setProjects] = useState<Project[]>(loadProjects);
   const [requests, setRequests] = useState<EngineerRequest[]>(loadRequests);
 
@@ -57,19 +58,29 @@ export default function App() {
     return () => unsubAuth();
   }, []);
 
-  // Initialize Firebase Firestore connection, seed data and subscribe to real-time sync
+  // Initialize Firebase Firestore connection and subscribe to continuous real-time sync
   useEffect(() => {
     let unsubRequests: (() => void) | undefined;
     let unsubProjects: (() => void) | undefined;
+
+    const pullFreshData = async () => {
+      const latest = await fetchLatestFromFirestore();
+      if (latest.projects.length > 0 || latest.requests.length > 0) {
+        setProjects(latest.projects);
+        setRequests(latest.requests);
+        saveProjects(latest.projects);
+        saveRequests(latest.requests);
+      }
+    };
 
     const initFirebase = async () => {
       // 1. Validate connection
       await testFirestoreConnection();
 
-      // 2. Ensure all mock sample data is completely purged
-      await ensureCleanDatabaseState();
+      // 2. Fetch latest state from Firestore immediately
+      await pullFreshData();
 
-      // 3. Real-time subscriptions across all users
+      // 3. Continuous real-time subscription across all users and logged-in emails
       unsubRequests = subscribeToRequests((firestoreRequests) => {
         if (Array.isArray(firestoreRequests)) {
           setRequests(firestoreRequests);
@@ -87,9 +98,21 @@ export default function App() {
 
     initFirebase();
 
+    // Re-verify latest cloud state whenever tab becomes active or network reconnects
+    const handleRecheck = () => {
+      pullFreshData();
+    };
+
+    window.addEventListener('focus', handleRecheck);
+    window.addEventListener('online', handleRecheck);
+    document.addEventListener('visibilitychange', handleRecheck);
+
     return () => {
       if (unsubRequests) unsubRequests();
       if (unsubProjects) unsubProjects();
+      window.removeEventListener('focus', handleRecheck);
+      window.removeEventListener('online', handleRecheck);
+      document.removeEventListener('visibilitychange', handleRecheck);
     };
   }, []);
 
@@ -242,6 +265,10 @@ export default function App() {
         {activeView === 'home' && (
           <HomeHero
             onNavigate={(view) => setActiveView(view)}
+            onNavigateToRequests={(category) => {
+              setRequestCategoryFilter(category);
+              setActiveView('requests');
+            }}
             requests={requests}
             projects={projects}
             onOpenRequest={handleEditRequest}
@@ -255,6 +282,7 @@ export default function App() {
         {activeView === 'requests' && (
           <RequestList
             requests={requests}
+            initialCategory={requestCategoryFilter}
             onAddNew={() => handleOpenNewRequest()}
             onEdit={handleEditRequest}
             onPrint={handlePrintRequest}

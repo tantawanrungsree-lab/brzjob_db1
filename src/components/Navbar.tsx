@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActiveView } from '../types';
 import { 
-  ArrowLeft, Cloud, Check, RefreshCw, LogIn, LogOut, User, Shield
+  ArrowLeft, Cloud, Check, RefreshCw, LogIn, LogOut, User, Shield, BookOpen
 } from 'lucide-react';
 import { AppUser } from '../services/auth';
 
@@ -73,18 +73,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </button>
 
-          {/* Navigation Area: Hidden on Home page; Shown on other subpages */}
-          {activeView !== 'home' && (
-            <nav className="flex items-center gap-2 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+          {/* Navigation Area */}
+          <div className="flex items-center gap-2">
+            {activeView !== 'home' && (
               <button
                 onClick={() => setActiveView('home')}
-                className="px-5 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-md font-extrabold active:scale-95 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-md font-extrabold active:scale-95 cursor-pointer"
               >
-                <ArrowLeft className="w-5 h-5 text-slate-950" />
-                <span>← กลับหน้าหลัก (Home)</span>
+                <ArrowLeft className="w-4 h-4 text-slate-950" />
+                <span>หน้าหลัก (Home)</span>
               </button>
-            </nav>
-          )}
+            )}
+            
+            <button
+              onClick={() => setActiveView('customer-guide')}
+              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 border cursor-pointer ${
+                activeView === 'customer-guide'
+                  ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md'
+                  : 'bg-slate-800/90 text-amber-300 hover:bg-slate-800 border-amber-500/30'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>คู่มือลูกค้า (Customer Guide)</span>
+            </button>
+          </div>
         </div>
 
         {/* Right Executive Status Indicator, User Profile & Firebase Sync Badge */}

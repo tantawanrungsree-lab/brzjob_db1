@@ -13,6 +13,7 @@ import { RequestTablePrintPreview } from './RequestTablePrintPreview';
 
 interface RequestListProps {
   requests: EngineerRequest[];
+  initialCategory?: 'all' | 'internal' | 'customer';
   onAddNew: () => void;
   onEdit: (req: EngineerRequest) => void;
   onPrint: (req: EngineerRequest) => void;
@@ -23,6 +24,7 @@ interface RequestListProps {
 
 export const RequestList: React.FC<RequestListProps> = ({
   requests,
+  initialCategory = 'all',
   onAddNew,
   onEdit,
   onPrint,
@@ -31,6 +33,7 @@ export const RequestList: React.FC<RequestListProps> = ({
   onSaveRequest = () => {}
 }) => {
   const [viewMode, setViewMode] = useState<'table' | 'calendar' | 'engineer_portal'>('table');
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'internal' | 'customer'>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJobType, setSelectedJobType] = useState<JobTypeKey | 'all'>('all');
   const [selectedStatus, setSelectedStatus] = useState<RequestStatus | 'all'>('all');
@@ -38,8 +41,19 @@ export const RequestList: React.FC<RequestListProps> = ({
   const [selectedEngineer, setSelectedEngineer] = useState<string>('all');
   const [showTablePrintPreview, setShowTablePrintPreview] = useState(false);
 
+  // Sync category if prop changes
+  React.useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [initialCategory]);
+
   // Extract unique engineers
   const engineers = Array.from(new Set(requests.map(r => r.engineerStaff).filter(Boolean)));
+
+  // Extract Category counts
+  const internalRequests = requests.filter(r => r.requestCategory === 'internal');
+  const customerRequests = requests.filter(r => r.requestCategory === 'customer' || !r.requestCategory);
 
   // Filter requests
   const filteredRequests = requests.filter(req => {
@@ -55,6 +69,11 @@ export const RequestList: React.FC<RequestListProps> = ({
       req.salesInCharge.toLowerCase().includes(q) ||
       (req.location && req.location.toLowerCase().includes(q)) ||
       req.requestDetails.toLowerCase().includes(q);
+
+    const matchCategory =
+      selectedCategory === 'all' ||
+      (selectedCategory === 'internal' && req.requestCategory === 'internal') ||
+      (selectedCategory === 'customer' && (req.requestCategory === 'customer' || !req.requestCategory));
 
     const matchJobType = 
       selectedJobType === 'all' || 
@@ -72,7 +91,7 @@ export const RequestList: React.FC<RequestListProps> = ({
       selectedEngineer === 'all' || 
       req.engineerStaff === selectedEngineer;
 
-    return matchSearch && matchJobType && matchStatus && matchPriority && matchEngineer;
+    return matchSearch && matchCategory && matchJobType && matchStatus && matchPriority && matchEngineer;
   });
 
   const handleExportCSV = () => {
@@ -258,13 +277,81 @@ export const RequestList: React.FC<RequestListProps> = ({
       {/* VIEW 3: EXCEL SPREADSHEET MASTER TABLE (FULL WIDTH) */}
       {/* ========================================================================= */}
       {viewMode === 'table' && (
-        <div className="space-y-4 w-full">
+        <div className="space-y-3.5 w-full">
           
+          {/* Master Sheet Scope Tabs: All vs Internal Request vs Customer Request */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-slate-200/80 p-1.5 rounded-2xl border border-slate-300 shadow-inner">
+            
+            {/* TAB 1: ALL REQUESTS */}
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('all')}
+              className={`flex items-center justify-between px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                selectedCategory === 'all'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-300 ring-2 ring-slate-400/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-slate-800" />
+                <span>ตารางคำขอทั้งหมด (All Requests)</span>
+              </div>
+              <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300">
+                {requests.length}
+              </span>
+            </button>
+
+            {/* TAB 2: INTERNAL REQUEST */}
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('internal')}
+              className={`flex items-center justify-between px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                selectedCategory === 'internal'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm border border-amber-600 ring-2 ring-amber-400/30'
+                  : 'text-amber-900 hover:text-amber-950 hover:bg-amber-100 bg-amber-50/60'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-950" />
+                <span className="truncate">Internal request (คำขอภายใน)</span>
+              </div>
+              <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 border border-amber-300">
+                {internalRequests.length}
+              </span>
+            </button>
+
+            {/* TAB 3: CUSTOMER REQUEST */}
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('customer')}
+              className={`flex items-center justify-between px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                selectedCategory === 'customer'
+                  ? 'bg-blue-600 text-white shadow-sm border border-blue-700 ring-2 ring-blue-500/30'
+                  : 'text-blue-900 hover:text-blue-950 hover:bg-blue-100 bg-blue-50/60'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-white" />
+                <span className="truncate">Customer request (คำขอลูกค้า)</span>
+              </div>
+              <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-blue-200 text-blue-950 border border-blue-300">
+                {customerRequests.length}
+              </span>
+            </button>
+
+          </div>
+
           {/* Main Excel Sheet Container */}
           <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden flex flex-col w-full">
             
             {/* Excel Ribbon / Green Header Bar */}
-            <div className="bg-[#107c41] text-white px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+            <div className={`text-white px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner ${
+              selectedCategory === 'internal'
+                ? 'bg-[#b45309]'
+                : selectedCategory === 'customer'
+                ? 'bg-[#1d4ed8]'
+                : 'bg-[#107c41]'
+            }`}>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-white/20 text-white font-bold flex items-center justify-center font-mono text-sm border border-white/30">
                   XL
@@ -272,9 +359,13 @@ export const RequestList: React.FC<RequestListProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-bold font-heading text-white">
-                      ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet)
+                      {selectedCategory === 'internal'
+                        ? 'ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet) Internal request'
+                        : selectedCategory === 'customer'
+                        ? 'ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet) Customer request'
+                        : 'ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet)'}
                     </h2>
-                    <span className="text-[11px] bg-emerald-950/60 text-emerald-200 px-2 py-0.5 rounded font-mono">
+                    <span className="text-[11px] bg-black/30 text-white px-2 py-0.5 rounded font-mono border border-white/20">
                       {filteredRequests.length} จาก {requests.length} แถว
                     </span>
                   </div>
@@ -433,7 +524,18 @@ export const RequestList: React.FC<RequestListProps> = ({
 
                         {/* Document & Service No */}
                         <td className="py-3 px-3">
-                          <div className="font-mono font-bold text-slate-900">{req.documentNo}</div>
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="font-mono font-bold text-slate-900">{req.documentNo}</span>
+                            {req.requestCategory === 'internal' ? (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                INTERNAL
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-100 text-blue-900 border border-blue-300">
+                                CUSTOMER
+                              </span>
+                            )}
+                          </div>
                           <div className="font-mono text-[11px] text-slate-500">{req.serviceNo}</div>
                           <div className="text-[10px] text-slate-400 font-mono">Req: {req.dateRequest}</div>
                         </td>

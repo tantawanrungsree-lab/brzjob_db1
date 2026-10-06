@@ -6,7 +6,6 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Project, EngineerRequest } from '../types';
-import { INITIAL_PROJECTS, INITIAL_REQUESTS } from '../data/initialData';
 
 // Initialize Firebase App
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -16,10 +15,8 @@ export const db = getFirestore(app);
 export const REQUESTS_COLLECTION = 'requests';
 export const PROJECTS_COLLECTION = 'projects';
 
-const CLEAN_FLAG_KEY = 'lumencraft_cloud_purged_sample_data_v3';
-
 /**
- * Validate connection to Firestore as requested by Firebase integration spec
+ * Validate connection to Firestore
  */
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
@@ -35,7 +32,7 @@ export async function testFirestoreConnection(): Promise<boolean> {
 }
 
 /**
- * Real-time listener for all requests in Firestore
+ * Real-time listener for all requests in Firestore across all users
  */
 export function subscribeToRequests(onUpdate: (requests: EngineerRequest[]) => void): Unsubscribe {
   const reqCol = collection(db, REQUESTS_COLLECTION);
@@ -58,7 +55,7 @@ export function subscribeToRequests(onUpdate: (requests: EngineerRequest[]) => v
 }
 
 /**
- * Real-time listener for all projects in Firestore
+ * Real-time listener for all projects in Firestore across all users
  */
 export function subscribeToProjects(onUpdate: (projects: Project[]) => void): Unsubscribe {
   const prjCol = collection(db, PROJECTS_COLLECTION);
@@ -81,7 +78,44 @@ export function subscribeToProjects(onUpdate: (projects: Project[]) => void): Un
 }
 
 /**
- * Save or update single Request in Firebase
+ * Directly fetch latest projects and requests from Firestore
+ */
+export async function fetchLatestFromFirestore(): Promise<{ projects: Project[]; requests: EngineerRequest[] }> {
+  try {
+    const prjCol = collection(db, PROJECTS_COLLECTION);
+    const reqCol = collection(db, REQUESTS_COLLECTION);
+    const [prjSnap, reqSnap] = await Promise.all([
+      getDocs(prjCol),
+      getDocs(reqCol)
+    ]);
+
+    const liveProjects: Project[] = [];
+    prjSnap.forEach(d => liveProjects.push(d.data() as Project));
+    liveProjects.sort((a, b) => {
+      const dateA = a.createdAt || a.startDate || '';
+      const dateB = b.createdAt || b.startDate || '';
+      if (dateB !== dateA) return dateB.localeCompare(dateA);
+      return (b.projectCode || '').localeCompare(a.projectCode || '');
+    });
+
+    const liveRequests: EngineerRequest[] = [];
+    reqSnap.forEach(d => liveRequests.push(d.data() as EngineerRequest));
+    liveRequests.sort((a, b) => {
+      const dateA = a.createdAt || a.dateRequest || '';
+      const dateB = b.createdAt || b.dateRequest || '';
+      if (dateB !== dateA) return dateB.localeCompare(dateA);
+      return (b.documentNo || '').localeCompare(a.documentNo || '');
+    });
+
+    return { projects: liveProjects, requests: liveRequests };
+  } catch (err) {
+    console.error('Error fetching latest from Firestore:', err);
+    return { projects: [], requests: [] };
+  }
+}
+
+/**
+ * Save or update single Request permanently in Firebase
  */
 export async function saveRequestToFirestore(request: EngineerRequest): Promise<void> {
   try {
@@ -90,6 +124,7 @@ export async function saveRequestToFirestore(request: EngineerRequest): Promise<
       ...request,
       updatedAt: new Date().toISOString()
     }, { merge: true });
+    console.log(`[Firebase] Successfully saved request: ${request.id} (${request.documentNo})`);
   } catch (err) {
     console.error('Error saving request to Firestore:', err);
   }
@@ -109,7 +144,7 @@ export async function deleteRequestFromFirestore(id: string): Promise<void> {
 }
 
 /**
- * Save or update single Project in Firebase
+ * Save or update single Project permanently in Firebase
  */
 export async function saveProjectToFirestore(project: Project): Promise<void> {
   try {
@@ -118,6 +153,7 @@ export async function saveProjectToFirestore(project: Project): Promise<void> {
       ...project,
       updatedAt: new Date().toISOString()
     }, { merge: true });
+    console.log(`[Firebase] Successfully saved project: ${project.id} (${project.projectCode})`);
   } catch (err) {
     console.error('Error saving project to Firestore:', err);
   }
@@ -137,7 +173,7 @@ export async function deleteProjectFromFirestore(id: string): Promise<void> {
 }
 
 /**
- * Wipe all sample mock data from Firebase Firestore and storage completely
+ * Wipe all data from Firebase Firestore only on explicit user request
  */
 export async function clearAllSampleDataFromFirebase(): Promise<void> {
   try {
@@ -152,13 +188,11 @@ export async function clearAllSampleDataFromFirebase(): Promise<void> {
     const batch = writeBatch(db);
     let deletedCount = 0;
 
-    // Delete all projects from Firebase
     prjSnap.forEach((d) => {
       batch.delete(d.ref);
       deletedCount++;
     });
 
-    // Delete all requests from Firebase
     reqSnap.forEach((d) => {
       batch.delete(d.ref);
       deletedCount++;
@@ -166,30 +200,15 @@ export async function clearAllSampleDataFromFirebase(): Promise<void> {
 
     if (deletedCount > 0) {
       await batch.commit();
-      console.log(`[Firebase] Successfully cleared ${deletedCount} sample items from Firestore.`);
+      console.log(`[Firebase] Cleared ${deletedCount} items from Firestore.`);
     }
 
     localStorage.removeItem('lumencraft_master_projects_db_v2');
     localStorage.removeItem('lumencraft_master_requests_db_v2');
     localStorage.removeItem('lumencraft_backup_projects_db_v2');
     localStorage.removeItem('lumencraft_backup_requests_db_v2');
-    localStorage.setItem(CLEAN_FLAG_KEY, 'true');
   } catch (err) {
-    console.error('Error clearing sample data from Firebase:', err);
-  }
-}
-
-/**
- * Check and perform initial clean up of sample data on startup
- */
-export async function ensureCleanDatabaseState(): Promise<void> {
-  try {
-    const isCleaned = localStorage.getItem(CLEAN_FLAG_KEY);
-    if (!isCleaned) {
-      await clearAllSampleDataFromFirebase();
-    }
-  } catch (e) {
-    console.warn('Initial cleanup note:', e);
+    console.error('Error clearing data from Firebase:', err);
   }
 }
 

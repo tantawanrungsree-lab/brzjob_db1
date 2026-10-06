@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Shield, CheckCircle2, Sparkles, User, AlertCircle, LogIn } from 'lucide-react';
+import { X, Mail, Shield, CheckCircle2, AlertCircle } from 'lucide-react';
 import { AppUser, signInWithGoogle, signInWithDirectGmail } from '../../services/auth';
 
 interface GoogleLoginModalProps {
@@ -54,27 +54,6 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({
     }
   };
 
-  const presetAccounts = [
-    {
-      name: 'Tantawan Rungsree (Admin / Lead)',
-      email: 'tantawanrungsree@gmail.com',
-      role: 'Admin' as const,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80'
-    },
-    {
-      name: 'ธนากร ศรีสวัสดิ์ (Eng. Ton)',
-      email: 'ton.lumencraft@gmail.com',
-      role: 'Engineer' as const,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80'
-    },
-    {
-      name: 'กัญญาภัทร ชาญวิทย์ (Sales Jane)',
-      email: 'jane.sales.lumencraft@gmail.com',
-      role: 'Sales' as const,
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&auto=format&fit=crop&q=80'
-    }
-  ];
-
   return (
     <div className="fixed inset-0 z-70 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-md w-full border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
@@ -83,7 +62,7 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({
         <div className="bg-slate-900 text-white p-6 relative">
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -146,97 +125,58 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({
 
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">หรือเลือกบัญชีด่วน</span>
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">หรือระบุอีเมล Gmail</span>
             <div className="flex-1 h-px bg-slate-200" />
           </div>
 
-          {/* Preset Quick Logins */}
-          <div className="space-y-2">
-            {presetAccounts.map((acc) => (
-              <button
-                key={acc.email}
-                onClick={async () => {
-                  setLoading(true);
-                  const user = await signInWithDirectGmail(acc.email, acc.name, acc.role);
-                  onLoginSuccess(user);
-                  setLoading(false);
-                  onClose();
-                }}
-                className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50/50 flex items-center justify-between text-left transition-all group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <img src={acc.avatar} alt={acc.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
-                  <div>
-                    <div className="text-xs font-bold text-slate-800 group-hover:text-slate-900">{acc.name}</div>
-                    <div className="text-[10px] text-slate-500 font-mono">{acc.email}</div>
-                  </div>
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  acc.role === 'Admin' ? 'bg-purple-100 text-purple-700' :
-                  acc.role === 'Sales' ? 'bg-amber-100 text-amber-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {acc.role}
-                </span>
-              </button>
-            ))}
-          </div>
+          {/* Clean Real User Gmail Form */}
+          <form onSubmit={handleDirectSignIn} className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">อีเมล Gmail ของคุณ *</label>
+              <input
+                type="email"
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                placeholder="your.name@gmail.com"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white font-mono focus:ring-2 focus:ring-amber-400 outline-none"
+                required
+              />
+            </div>
 
-          {/* Custom Gmail Form */}
-          <details className="group pt-2">
-            <summary className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer list-none flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 transition-colors">
-              <span>+ กรอกอีเมล Gmail อื่น ๆ</span>
-              <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
-            </summary>
-            
-            <form onSubmit={handleDirectSignIn} className="mt-3 space-y-3 p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">อีเมล Gmail *</label>
+                <label className="block font-semibold text-slate-700 mb-1">ชื่อ-สกุล</label>
                 <input
-                  type="email"
-                  value={customEmail}
-                  onChange={(e) => setCustomEmail(e.target.value)}
-                  placeholder="your.name@gmail.com"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white font-mono focus:ring-2 focus:ring-amber-400 outline-none"
-                  required
+                  type="text"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder="ชื่อ-นามสกุล"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-amber-400 outline-none"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">ชื่อ-สกุล</label>
-                  <input
-                    type="text"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="สมชาย ใจดี"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-amber-400 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">ตำแหน่ง / สิทธิ์</label>
-                  <select
-                    value={customRole}
-                    onChange={(e) => setCustomRole(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-amber-400 outline-none"
-                  >
-                    <option value="Engineer">Engineer (วิศวกร)</option>
-                    <option value="Sales">Sales (ฝ่ายขาย)</option>
-                    <option value="Supervisor">Supervisor (หัวหน้างาน)</option>
-                    <option value="Admin">Admin (ผู้ดูแลระบบ)</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">ตำแหน่ง / สิทธิ์</label>
+                <select
+                  value={customRole}
+                  onChange={(e) => setCustomRole(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                >
+                  <option value="Engineer">Engineer (วิศวกร)</option>
+                  <option value="Sales">Sales (ฝ่ายขาย)</option>
+                  <option value="Supervisor">Supervisor (หัวหน้างาน)</option>
+                  <option value="Admin">Admin (ผู้ดูแลระบบ)</option>
+                </select>
               </div>
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors"
-              >
-                เข้าสู่ระบบด้วยอีเมลนี้
-              </button>
-            </form>
-          </details>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors cursor-pointer shadow-sm active:scale-98"
+            >
+              {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบด้วยอีเมลนี้'}
+            </button>
+          </form>
 
         </div>
 

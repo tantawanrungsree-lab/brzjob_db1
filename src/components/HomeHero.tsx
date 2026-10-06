@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActiveView, EngineerRequest, Project } from '../types';
 import { 
   FileText, Building2, ArrowRight, Plus, 
   Clock, Layers, BarChart3, Calendar, CreditCard, 
-  ShieldCheck, UserCheck, FileSpreadsheet
+  ShieldCheck, UserCheck, FileSpreadsheet,
+  Building, CheckCircle2, ChevronRight, X, Sparkles
 } from 'lucide-react';
 
 interface HomeHeroProps {
   onNavigate: (view: ActiveView) => void;
+  onNavigateToRequests?: (category: 'all' | 'internal' | 'customer') => void;
   requests: EngineerRequest[];
   projects: Project[];
   onOpenRequest: (req: EngineerRequest) => void;
@@ -18,14 +20,20 @@ interface HomeHeroProps {
 
 export const HomeHero: React.FC<HomeHeroProps> = ({
   onNavigate,
+  onNavigateToRequests = (category) => onNavigate('requests'),
   requests,
   projects,
   onNewRequest,
   onNewProject
 }) => {
+  const [showChoiceModal, setShowChoiceModal] = useState(false);
+
   const openRequests = requests.filter(r => r.status === 'Open');
   const inProgressRequests = requests.filter(r => r.status === 'In Progress');
   const completedRequests = requests.filter(r => r.status === 'Completed');
+
+  const internalRequests = requests.filter(r => r.requestCategory === 'internal');
+  const customerRequests = requests.filter(r => r.requestCategory === 'customer' || !r.requestCategory);
 
   // Total expenses across all projects
   const grandTotalExpenses = projects.reduce((sum, p) => {
@@ -35,6 +43,11 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
     const logSum = (exp.expenseLogs || []).reduce((s, l) => s + (l.amount || 0), 0);
     return sum + (logSum > directSum ? logSum : directSum);
   }, 0);
+
+  const handleSelectCategory = (cat: 'all' | 'internal' | 'customer') => {
+    setShowChoiceModal(false);
+    onNavigateToRequests(cat);
+  };
 
   return (
     <div className="space-y-8 pb-12 font-sans">
@@ -115,11 +128,11 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
               <h2 className="text-xl font-extrabold text-slate-950 font-heading">
-                เลือกเมนูหลักเพื่อเริ่มใช้งาน (Main Menus)
+                หน้าเลือกเมนูหลักเพื่อเริ่มใช้งาน (Main Menus)
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              กดปุ่ม <strong className="text-slate-800">+ สร้างคำขอ / + เพิ่มโครงการ</strong> หรือกดปุ่ม <strong className="text-slate-800">เข้าสู่หน้าระบบ</strong> ด้านล่างเพื่อเริ่มการทำงาน
+              เลือกเมนูคำของานวิศวกรรม (Internal / Customer) หรือบริหารโครงการ BRZ ด้านล่าง
             </p>
           </div>
           <span className="text-[11px] font-mono text-slate-400">Lumencraft Operations Hub</span>
@@ -128,10 +141,10 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* ========================================================================= */}
-          {/* CARD 1: ENGINEER JOB REQUEST (มี 2 ปุ่ม: + สร้างคำขอ และ เข้าสู่หน้า engineer job request) */}
+          {/* CARD 1: ENGINEER JOB REQUEST */}
           {/* ========================================================================= */}
-          <div className="relative bg-white border-2 border-slate-200 hover:border-amber-400 rounded-3xl p-6 sm:p-8 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden min-h-[360px]">
-            {/* Top decorative gradient & corner shape */}
+          <div className="relative bg-white border-2 border-slate-200 hover:border-amber-400 rounded-3xl p-6 sm:p-8 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden min-h-[420px]">
+            {/* Top decorative gradient */}
             <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-amber-100/70 via-amber-50/40 to-transparent rounded-bl-full pointer-events-none" />
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
 
@@ -139,8 +152,8 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
               {/* Header inside card */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-lg shadow-amber-500/25">
-                    <FileText className="w-8 h-8" />
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-lg shadow-amber-500/25">
+                    <FileText className="w-7 h-7 sm:w-8 sm:h-8" />
                   </div>
                   <div>
                     <span className="text-[11px] font-mono font-bold tracking-wider text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 block w-fit mb-1">
@@ -159,38 +172,68 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
 
               {/* Subtitle / Description */}
               <p className="text-xs text-slate-600 leading-relaxed">
-                ระบบจัดการคำของานวิศวกรรมและบริการภาคสนาม ควบคุมเอกสารคำขอตามแบบฟอร์มมาตรฐาน Lumencraft Service Request พร้อมระบบปฏิทินงานและตารางคำขอ Master Spreadsheet
+                ระบบจัดการคำของานวิศวกรรมและบริการภาคสนาม แยกตารางข้อมูลอย่างเป็นระบบระหว่าง <strong>Internal Request (ภายในบริษัท)</strong> และ <strong>Customer Request (ลูกค้าภายนอก)</strong>
               </p>
 
-              {/* Feature Highlights Grid */}
-              <div className="grid grid-cols-2 gap-2.5 pt-1 text-xs">
-                <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2 text-slate-700">
-                  <span className="p-1 bg-amber-100 text-amber-800 rounded-md shrink-0">
-                    <Layers className="w-3.5 h-3.5" />
-                  </span>
-                  <span className="truncate font-medium">8 หมวดงานมาตรฐาน</span>
-                </div>
+              {/* DUAL SELECTION TILES INSIDE THE CARD */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                
+                {/* 1. Internal Request Tile */}
+                <button
+                  type="button"
+                  onClick={() => onNavigateToRequests('internal')}
+                  className="p-3.5 rounded-2xl border-2 border-amber-200/80 bg-amber-50/50 hover:bg-amber-100/70 text-left transition-all hover:border-amber-400 hover:shadow-md active:scale-98 group flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold font-mono text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded">
+                        INTERNAL
+                      </span>
+                      <span className="text-xs font-extrabold font-mono text-amber-900">
+                        {internalRequests.length} งาน
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-900 transition-colors">
+                      ตารางข้อมูลคำของานวิศวกรรม (Internal request)
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
+                      คำขอภายในบริษัท งานคำนวณแบบ, QC, ตรวจสอบแล็บ, ประชุม
+                    </p>
+                  </div>
+                  <div className="mt-3 text-[11px] font-bold text-amber-800 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <span>เปิดตาราง Internal</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </button>
 
-                <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2 text-slate-700">
-                  <span className="p-1 bg-blue-100 text-blue-800 rounded-md shrink-0">
-                    <UserCheck className="w-3.5 h-3.5" />
-                  </span>
-                  <span className="truncate font-medium">ระบบรับงานของวิศวกร</span>
-                </div>
+                {/* 2. Customer Request Tile */}
+                <button
+                  type="button"
+                  onClick={() => onNavigateToRequests('customer')}
+                  className="p-3.5 rounded-2xl border-2 border-blue-200/80 bg-blue-50/50 hover:bg-blue-100/70 text-left transition-all hover:border-blue-400 hover:shadow-md active:scale-98 group flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold font-mono text-blue-800 bg-blue-200/70 px-2 py-0.5 rounded">
+                        CUSTOMER
+                      </span>
+                      <span className="text-xs font-extrabold font-mono text-blue-900">
+                        {customerRequests.length} งาน
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-900 transition-colors">
+                      ตารางข้อมูลคำของานวิศวกรรม (Customer request)
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
+                      คำขอจากลูกค้า งานบริการ, On Site, ติดตั้ง, Site Survey, Mock-Up
+                    </p>
+                  </div>
+                  <div className="mt-3 text-[11px] font-bold text-blue-800 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <span>เปิดตาราง Customer</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </button>
 
-                <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2 text-slate-700">
-                  <span className="p-1 bg-emerald-100 text-emerald-800 rounded-md shrink-0">
-                    <FileSpreadsheet className="w-3.5 h-3.5" />
-                  </span>
-                  <span className="truncate font-medium">ตาราง Excel & Print Preview</span>
-                </div>
-
-                <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2 text-slate-700">
-                  <span className="p-1 bg-purple-100 text-purple-800 rounded-md shrink-0">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                  </span>
-                  <span className="truncate font-medium">พิมพ์ใบคำขอ A4 ทางการ</span>
-                </div>
               </div>
             </div>
 
@@ -208,7 +251,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
                 </span>
               </div>
 
-              {/* 2 EXPLICIT BUTTONS FOR ENGINEER JOB REQUEST */}
+              {/* 2 MAIN BUTTONS FOR ENGINEER JOB REQUEST */}
               <div className="flex items-center gap-2.5 self-end sm:self-auto">
                 
                 {/* BUTTON 1: + สร้างคำขอ */}
@@ -222,12 +265,12 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
                   <span>+ สร้างคำขอ</span>
                 </button>
 
-                {/* BUTTON 2: เข้าสู่หน้า engineer job request */}
+                {/* BUTTON 2: เข้าสู่หน้า engineer job request (เปิดตัวเลือก) */}
                 <button
                   type="button"
-                  onClick={() => onNavigate('requests')}
+                  onClick={() => setShowChoiceModal(true)}
                   className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white hover:text-amber-300 font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-sm hover:shadow-md active:scale-95 cursor-pointer"
-                  title="คลิกเพื่อเปิดหน้าระบบคำของานวิศวกรรม"
+                  title="คลิกเพื่อเลือกเปิดหน้า Engineer Requests Master Sheet (Internal / Customer)"
                 >
                   <span>เข้าสู่หน้า engineer job request</span>
                   <ArrowRight className="w-4 h-4 text-amber-400" />
@@ -237,9 +280,9 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
           </div>
 
           {/* ========================================================================= */}
-          {/* CARD 2: BRZ PROJECT (มี 2 ปุ่ม: + เพิ่มโครงการ และ เข้าสู่หน้า brz project) */}
+          {/* CARD 2: BRZ PROJECT */}
           {/* ========================================================================= */}
-          <div className="relative bg-white border-2 border-slate-200 hover:border-blue-400 rounded-3xl p-6 sm:p-8 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden min-h-[360px]">
+          <div className="relative bg-white border-2 border-slate-200 hover:border-blue-400 rounded-3xl p-6 sm:p-8 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden min-h-[420px]">
             {/* Top decorative gradient & corner shape */}
             <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-blue-100/70 via-blue-50/40 to-transparent rounded-bl-full pointer-events-none" />
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600" />
@@ -248,8 +291,8 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
               {/* Header inside card */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-500/25">
-                    <Building2 className="w-8 h-8" />
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-500/25">
+                    <Building2 className="w-7 h-7 sm:w-8 sm:h-8" />
                   </div>
                   <div>
                     <span className="text-[11px] font-mono font-bold tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 block w-fit mb-1">
@@ -261,44 +304,44 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
                   </div>
                 </div>
 
-                <span className="text-xs font-mono font-bold bg-blue-950 text-blue-200 px-3 py-1.5 rounded-xl shadow-xs">
+                <span className="text-xs font-mono font-bold bg-blue-900 text-white px-3 py-1.5 rounded-xl shadow-xs">
                   {projects.length} โครงการ
                 </span>
               </div>
 
               {/* Subtitle / Description */}
               <p className="text-xs text-slate-600 leading-relaxed">
-                ศูนย์กลางฐานข้อมูลโครงการ ไทม์ไลน์งานสไตล์ Microsoft Project Gantt พร้อมระบบวิเคราะห์งบประมาณและสรุปค่าใช้จ่ายภาคสนาม (Total Project Expenses)
+                สารบบควบคุมและบริหารโครงการเชิงวิศวกรรมแสงสว่าง ติดตามสถานะความคืบหน้ารายโครงการ เชื่อมโยงใบสั่งขาย (SO Number) ตารางคำขอ และประวัติค่าใช้จ่าย
               </p>
 
               {/* Feature Highlights Grid */}
               <div className="grid grid-cols-2 gap-2.5 pt-1 text-xs">
                 <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2 text-slate-700">
                   <span className="p-1 bg-blue-100 text-blue-800 rounded-md shrink-0">
-                    <BarChart3 className="w-3.5 h-3.5" />
+                    <Building className="w-3.5 h-3.5" />
                   </span>
-                  <span className="truncate font-medium">Taskbar Stages 1-6</span>
+                  <span className="truncate font-medium">ควบคุมรหัส PRJ & SO</span>
                 </div>
 
                 <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2 text-slate-700">
                   <span className="p-1 bg-indigo-100 text-indigo-800 rounded-md shrink-0">
-                    <Calendar className="w-3.5 h-3.5" />
+                    <BarChart3 className="w-3.5 h-3.5" />
                   </span>
-                  <span className="truncate font-medium">Microsoft Project Gantt</span>
+                  <span className="truncate font-medium">ไทม์ไลน์ Gantt Chart</span>
                 </div>
 
                 <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2 text-slate-700">
                   <span className="p-1 bg-emerald-100 text-emerald-800 rounded-md shrink-0">
                     <CreditCard className="w-3.5 h-3.5" />
                   </span>
-                  <span className="truncate font-medium">สรุปค่าใช้จ่าย (Expenses)</span>
+                  <span className="truncate font-medium">บันทึกค่าน้ำมัน & OT</span>
                 </div>
 
                 <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2 text-slate-700">
-                  <span className="p-1 bg-rose-100 text-rose-800 rounded-md shrink-0">
-                    <ShieldCheck className="w-3.5 h-3.5" />
+                  <span className="p-1 bg-purple-100 text-purple-800 rounded-md shrink-0">
+                    <FileText className="w-3.5 h-3.5" />
                   </span>
-                  <span className="truncate font-medium">ประวัติการเคลม & เปลี่ยนอะไหล่</span>
+                  <span className="truncate font-medium">ผูกโยงคำขอที่เกี่ยวข้อง</span>
                 </div>
               </div>
             </div>
@@ -306,8 +349,11 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
             {/* Bottom Actions: 2 Clickable Buttons */}
             <div className="pt-5 mt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-500 font-medium">
-                  ค่าใช้จ่ายรวม: <strong className="text-emerald-700 font-mono font-bold">฿{grandTotalExpenses.toLocaleString()}</strong>
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded font-semibold border border-blue-200">
+                  โครงการทั้งหมด: {projects.length}
+                </span>
+                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded font-semibold border border-emerald-200">
+                  ค่าใช้จ่ายรวม: ฿{grandTotalExpenses.toLocaleString()}
                 </span>
               </div>
 
@@ -318,8 +364,8 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
                 <button
                   type="button"
                   onClick={onNewProject}
-                  className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-950 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-blue-200 shadow-xs hover:shadow-md active:scale-95 cursor-pointer"
-                  title="คลิกเพื่อเพิ่มโครงการใหม่"
+                  className="px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-950 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border border-blue-300 shadow-xs hover:shadow-md active:scale-95 cursor-pointer"
+                  title="คลิกเพื่อเพิ่มโครงการวิศวกรรมใหม่"
                 >
                   <Plus className="w-4 h-4 text-blue-700" />
                   <span>+ เพิ่มโครงการ</span>
@@ -330,7 +376,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
                   type="button"
                   onClick={() => onNavigate('projects')}
                   className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white hover:text-blue-300 font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-sm hover:shadow-md active:scale-95 cursor-pointer"
-                  title="คลิกเพื่อเปิดหน้าศูนย์ข้อมูลโครงการ BRZ Project"
+                  title="คลิกเพื่อเปิดหน้าระบบสารบบโครงการ BRZ"
                 >
                   <span>เข้าสู่หน้า brz project</span>
                   <ArrowRight className="w-4 h-4 text-blue-400" />
@@ -341,6 +387,139 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
 
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 3. SELECTION MODAL: WHEN CLICKING "เข้าสู่หน้า engineer job request" */}
+      {/* ========================================================================= */}
+      {showChoiceModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white px-6 py-5 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold font-heading">
+                    เลือกมุมมองตารางข้อมูลคำของานวิศวกรรม
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Engineer Requests Master Sheet Selection
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChoiceModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Options Body */}
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-600 font-medium">
+                กรุณาเลือกประเภทตารางข้อมูลคำของานวิศวกรรมที่ต้องการเข้าใช้งาน:
+              </p>
+
+              <div className="grid grid-cols-1 gap-3.5">
+                
+                {/* OPTION 1: Internal Request */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('internal')}
+                  className="p-4 rounded-2xl border-2 border-amber-200 hover:border-amber-500 bg-amber-50/40 hover:bg-amber-50 text-left transition-all hover:shadow-md flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-sm mt-0.5">
+                      <FileSpreadsheet className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold text-slate-900 group-hover:text-amber-900 transition-colors">
+                          ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet) Internal request
+                        </span>
+                        <span className="text-[11px] font-mono font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                          {internalRequests.length} งาน
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-1">
+                        สำหรับงานคำขอภายในบริษัท เช่น งานคำนวณแบบ, นับแบบ Take-off / BOQ, ตรวจสอบคุณภาพสินค้า QC, รายงานผลทดสอบในแล็บ, ประชุมทางเทคนิค
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
+                </button>
+
+                {/* OPTION 2: Customer Request */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('customer')}
+                  className="p-4 rounded-2xl border-2 border-blue-200 hover:border-blue-500 bg-blue-50/40 hover:bg-blue-50 text-left transition-all hover:shadow-md flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shrink-0 shadow-sm mt-0.5">
+                      <FileSpreadsheet className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold text-slate-900 group-hover:text-blue-900 transition-colors">
+                          ตารางข้อมูลคำของานวิศวกรรม (Engineer Requests Master Sheet) Customer request
+                        </span>
+                        <span className="text-[11px] font-mono font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full">
+                          {customerRequests.length} งาน
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-1">
+                        สำหรับงานคำขอจากลูกค้าภายนอก เช่น บริการ On Site หน้างาน, ติดตั้ง Installation, ตรวจไซต์ Site Survey, สาธิต Mock-Up, งานเคลมสินค้า
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-blue-600 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
+                </button>
+
+                {/* OPTION 3: All Requests Master Sheet */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('all')}
+                  className="p-3.5 rounded-2xl border border-slate-200 hover:border-slate-400 bg-slate-50 hover:bg-slate-100 text-left transition-all flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold shrink-0">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800">
+                        ดูตารางคำขอทั้งหมด (All Requests Master Sheet)
+                      </span>
+                      <span className="text-[11px] text-slate-500 block">
+                        แสดงข้อมูลคำของานวิศวกรรมรวมทั้งหมดทุกหมวด ({requests.length} คำขอ)
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform" />
+                </button>
+
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 bg-slate-100 border-t border-slate-200 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowChoiceModal(false)}
+                className="px-4 py-2 bg-white hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition-colors"
+              >
+                ยกเลิก
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
