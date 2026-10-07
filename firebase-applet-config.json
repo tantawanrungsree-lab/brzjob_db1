@@ -1,12 +1,11 @@
 {
-  "projectId": "shining-magnet-06shk",
-  "appId": "1:765648988105:web:e93e6d2a2c12f69df26a18",
-  "apiKey": "AIzaSyCjZXEYvoz20eJzTH_14pe6EPvkPqFF9ik",
-  "authDomain": "shining-magnet-06shk.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-lumencraftengine-c1d9ffc8-34fc-44f6-8c79-9e38f7e026a8",
-  "storageBucket": "shining-magnet-06shk.firebasestorage.app",
-  "messagingSenderId": "765648988105",
+  "projectId": "gen-lang-client-0693147715",
+  "appId": "1:82104615465:web:f8f86a4a8cc595de535238",
+  "apiKey": "AIzaSyBvo-EgAIL9h5aVWoSithT1Z15ld3UfpGg",
+  "authDomain": "gen-lang-client-0693147715.firebaseapp.com",
+  "storageBucket": "gen-lang-client-0693147715.firebasestorage.app",
+  "messagingSenderId": "82104615465",
   "measurementId": "",
-  "oAuthClientId": "765648988105-rl4dv9atdtbp64brt2g3oleqqj8c8iok.apps.googleusercontent.com",
+  "oAuthClientId": "82104615465-n0pa22n7hrfqv9rir1uepbg5p3dod2or.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

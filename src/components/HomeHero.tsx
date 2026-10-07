@@ -4,8 +4,10 @@ import {
   FileText, Building2, ArrowRight, Plus, 
   Clock, Layers, BarChart3, Calendar, CreditCard, 
   ShieldCheck, UserCheck, FileSpreadsheet,
-  Building, CheckCircle2, ChevronRight, X, Sparkles
+  Building, CheckCircle2, ChevronRight, X, Sparkles,
+  Sheet, ExternalLink, Lock, Database
 } from 'lucide-react';
+import { getStoredSpreadsheetId, getSpreadsheetUrl } from '../services/googleSheets';
 
 interface HomeHeroProps {
   onNavigate: (view: ActiveView) => void;
@@ -16,6 +18,7 @@ interface HomeHeroProps {
   onPrintRequest: (req: EngineerRequest) => void;
   onNewRequest: () => void;
   onNewProject: () => void;
+  onOpenGoogleSheets?: () => void;
 }
 
 export const HomeHero: React.FC<HomeHeroProps> = ({
@@ -24,9 +27,12 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
   requests,
   projects,
   onNewRequest,
-  onNewProject
+  onNewProject,
+  onOpenGoogleSheets
 }) => {
   const [showChoiceModal, setShowChoiceModal] = useState(false);
+  const storedSheetId = getStoredSpreadsheetId();
+  const currentSheetUrl = storedSheetId ? getSpreadsheetUrl(storedSheetId) : null;
 
   const openRequests = requests.filter(r => r.status === 'Open');
   const inProgressRequests = requests.filter(r => r.status === 'In Progress');
@@ -387,6 +393,73 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
             </div>
           </div>
 
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2.5 GOOGLE SHEETS UNIFIED CLOUD DATABASE & LOCKED PHOTO SYNC BANNER */}
+      {/* ========================================================================= */}
+      <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white rounded-3xl p-6 sm:p-7 border border-emerald-800/80 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shrink-0 shadow-lg shadow-emerald-950">
+              <Sheet className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-heading font-black text-lg text-white">
+                  Google Sheets Unified Database & Image Cloud Sync
+                </h3>
+                <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-mono font-bold px-2 py-0.5 rounded border border-emerald-400/30">
+                  3 SHEETS TABS
+                </span>
+              </div>
+              <p className="text-xs text-emerald-200/80 mt-1 max-w-2xl leading-relaxed">
+                จัดเก็บข้อมูลทุกคำขอและโครงการทั้งหมดลง Google Sheets ก้อนเดียวกันทุก Gmail Login พร้อมล็อกความกว้างคอลลั่มรูปภาพและส่วนสูงเซลล์ให้แสดงผลรูปภาพได้อย่างสวยงามและสมส่วน
+              </p>
+              <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] font-mono text-emerald-300">
+                <span className="flex items-center gap-1">
+                  <Database className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>ฐานข้อมูลก้อนเดียว</span>
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>ล็อกคอลลั่มขนาดรูปภาพ</span>
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>ปลอดภัยด้วย Gmail OAuth</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+            {currentSheetUrl && (
+              <a
+                href={currentSheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <span>เปิดดู Google Sheet</span>
+                <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+              </a>
+            )}
+            {onOpenGoogleSheets && (
+              <button
+                onClick={onOpenGoogleSheets}
+                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs transition-all shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <Sheet className="w-4 h-4" />
+                <span>จัดการซิงค์ Google Sheets</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

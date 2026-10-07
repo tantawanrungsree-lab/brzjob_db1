@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ActiveView, EngineerRequest, Project } from './types';
 import { 
   loadProjects, 
@@ -11,24 +11,16 @@ import {
   loadRequests, 
   saveRequests, 
   resetAllData, 
-  mergeRequestData,
-  mergeRequestCollections,
-  mergeProjectCollections
+  mergeRequestData
 } from './utils/storage';
 import { 
-  testFirestoreConnection, 
-  subscribeToRequests, 
-  subscribeToProjects, 
-  fetchLatestFromFirestore,
-  saveRequestToFirestore, 
-  deleteRequestFromFirestore, 
-  saveProjectToFirestore, 
-  deleteProjectFromFirestore, 
-  clearAllSampleDataFromFirebase,
-  syncAllDataToFirebase
-} from './services/firebase';
-import { AppUser, subscribeToAuth, signOutUser, getStoredUser } from './services/auth';
+  autoPullAndMergeMasterSpreadsheet,
+  syncAllToGoogleSheets, 
+  getStoredSpreadsheetId 
+} from './services/googleSheets';
+import { AppUser, subscribeToAuth, signOutUser, getStoredUser, getGoogleAccessToken } from './services/auth';
 import { GoogleLoginModal } from './components/Auth/GoogleLoginModal';
+import { GoogleSheetsSyncModal } from './components/GoogleSheetsSyncModal';
 import { Navbar } from './components/Navbar';
 import { HomeHero } from './components/HomeHero';
 import { RequestList } from './components/EngineerRequests/RequestList';
@@ -48,6 +40,7 @@ export default function App() {
   // Authentication State
   const [currentUser, setCurrentUser] = useState<AppUser | null>(getStoredUser);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isGoogleSheetsModalOpen, setIsGoogleSheetsModalOpen] = useState(false);
 
   // Modals state
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -68,103 +61,33 @@ export default function App() {
     return () => unsubAuth();
   }, []);
 
-  // Initialize Firebase Firestore connection and subscribe to continuous real-time sync
-  useEffect(() => {
-    let unsubRequests: (() => void) | undefined;
-    let unsubProjects: (() => void) | undefined;
+  // Safe Google Sheets Auto-Discovery: Connects to 'Lumencraft Engineering & Project Hub - Master Database'
+  // across any Gmail login or device
+  const pullGoogleSheetsData = useCallback(async () => {
+    const token = getGoogleAccessToken();
+    if (!token) return;
 
-    const pullFreshData = async () => {
-      try {
-        const latest = await fetchLatestFromFirestore();
-        
-        // Merge requests safely without dropping local or cloud items
-        const currentLocalRequests = loadRequests();
-        const { merged: mergedReqs, unsyncedToCloud: unsyncedReqs } = mergeRequestCollections(
-          currentLocalRequests, 
-          latest.requests
-        );
-        if (mergedReqs.length > 0) {
-          setRequests(mergedReqs);
-          saveRequests(mergedReqs);
-        }
-        // Upload any local-only requests to Firestore
-        for (const req of unsyncedReqs) {
-          saveRequestToFirestore(req);
-        }
-
-        // Merge projects safely
-        const currentLocalProjects = loadProjects();
-        const { merged: mergedProjs, unsyncedToCloud: unsyncedProjs } = mergeProjectCollections(
-          currentLocalProjects, 
-          latest.projects
-        );
-        if (mergedProjs.length > 0) {
-          setProjects(mergedProjs);
-          saveProjects(mergedProjs);
-        }
-        // Upload any local-only projects to Firestore
-        for (const proj of unsyncedProjs) {
-          saveProjectToFirestore(proj);
-        }
-      } catch (err) {
-        console.warn('pullFreshData sync note:', err);
+    try {
+      const currentLocalRequests = loadRequests();
+      const currentLocalProjects = loadProjects();
+      const result = await autoPullAndMergeMasterSpreadsheet(token, currentLocalProjects, currentLocalRequests);
+      if (result.success) {
+        setRequests(result.requests);
+        setProjects(result.projects);
       }
-    };
-
-    const initFirebase = async () => {
-      // 1. Validate connection
-      await testFirestoreConnection();
-
-      // 2. Fetch latest state from Firestore immediately & merge seamlessly
-      await pullFreshData();
-
-      // 3. Continuous real-time subscription across all users and logged-in emails
-      unsubRequests = subscribeToRequests((firestoreRequests) => {
-        if (Array.isArray(firestoreRequests)) {
-          const currentLocal = loadRequests();
-          const { merged, unsyncedToCloud } = mergeRequestCollections(currentLocal, firestoreRequests);
-          setRequests(merged);
-          saveRequests(merged);
-          for (const req of unsyncedToCloud) {
-            saveRequestToFirestore(req);
-          }
-        }
-      });
-
-      unsubProjects = subscribeToProjects((firestoreProjects) => {
-        if (Array.isArray(firestoreProjects)) {
-          const currentLocal = loadProjects();
-          const { merged, unsyncedToCloud } = mergeProjectCollections(currentLocal, firestoreProjects);
-          setProjects(merged);
-          saveProjects(merged);
-          for (const proj of unsyncedToCloud) {
-            saveProjectToFirestore(proj);
-          }
-        }
-      });
-    };
-
-    initFirebase();
-
-    // Re-verify latest cloud state whenever tab becomes active or network reconnects
-    const handleRecheck = () => {
-      pullFreshData();
-    };
-
-    window.addEventListener('focus', handleRecheck);
-    window.addEventListener('online', handleRecheck);
-    document.addEventListener('visibilitychange', handleRecheck);
-
-    return () => {
-      if (unsubRequests) unsubRequests();
-      if (unsubProjects) unsubProjects();
-      window.removeEventListener('focus', handleRecheck);
-      window.removeEventListener('online', handleRecheck);
-      document.removeEventListener('visibilitychange', handleRecheck);
-    };
+    } catch (err) {
+      console.warn('Google Sheets master database sync note:', err);
+    }
   }, []);
 
-  // Sync state to local storage cache for instant offline responsiveness
+  // Initial pull and sync whenever user logs in or token is available
+  useEffect(() => {
+    if (currentUser || getGoogleAccessToken()) {
+      pullGoogleSheetsData();
+    }
+  }, [currentUser, pullGoogleSheetsData]);
+
+  // Sync state to local storage cache for instant offline responsiveness & non-logged-in access
   useEffect(() => {
     saveProjects(projects);
   }, [projects]);
@@ -173,7 +96,7 @@ export default function App() {
     saveRequests(requests);
   }, [requests]);
 
-  // Request Handlers - Live Firestore Sync
+  // Request Handlers - Instant local save & non-destructive background sync
   const handleOpenNewRequest = (projectId?: string) => {
     setEditingRequest(null);
     setPreselectedProjectId(projectId);
@@ -193,23 +116,32 @@ export default function App() {
       if (existing) {
         const merged = mergeRequestData(existing, savedReq);
         updatedList = prev.map(r => r.id === savedReq.id ? merged : r);
-        return updatedList;
+      } else {
+        updatedList = [savedReq, ...prev];
       }
-      updatedList = [savedReq, ...prev];
+      saveRequests(updatedList);
       return updatedList;
     });
 
-    // Save directly to Firebase Firestore
-    saveRequestToFirestore(savedReq);
+    // If Google Sheets token is active, sync back to master sheet in background
+    const token = getGoogleAccessToken();
+    if (token) {
+      syncAllToGoogleSheets(projects, updatedList, token).catch(e => console.warn('Background sync note:', e));
+    }
   };
 
-  const handleDeleteRequest = async (id: string) => {
+  const handleDeleteRequest = (id: string) => {
+    let updatedList: EngineerRequest[] = [];
     setRequests(prev => {
-      const updated = prev.filter(r => r.id !== id);
-      saveRequests(updated);
-      return updated;
+      updatedList = prev.filter(r => r.id !== id);
+      saveRequests(updatedList);
+      return updatedList;
     });
-    await deleteRequestFromFirestore(id);
+
+    const token = getGoogleAccessToken();
+    if (token) {
+      syncAllToGoogleSheets(projects, updatedList, token).catch(e => console.warn('Background sync note:', e));
+    }
   };
 
   const handlePrintRequest = (req: EngineerRequest) => {
@@ -217,7 +149,7 @@ export default function App() {
     setActiveView('print-request');
   };
 
-  // Project Handlers - Live Firestore Sync
+  // Project Handlers
   const handleOpenNewProject = () => {
     setEditingProject(null);
     setIsProjectModalOpen(true);
@@ -233,51 +165,50 @@ export default function App() {
   };
 
   const handleSaveProject = (savedProj: Project) => {
+    let updatedProjects: Project[] = [];
     setProjects(prev => {
       const exists = prev.some(p => p.id === savedProj.id);
       if (exists) {
-        return prev.map(p => p.id === savedProj.id ? savedProj : p);
+        updatedProjects = prev.map(p => p.id === savedProj.id ? savedProj : p);
+      } else {
+        updatedProjects = [savedProj, ...prev];
       }
-      return [savedProj, ...prev];
+      saveProjects(updatedProjects);
+      return updatedProjects;
     });
 
-    // If currently viewing details of this project, update it too
     if (viewingProject && viewingProject.id === savedProj.id) {
       setViewingProject(savedProj);
     }
 
-    // Save directly to Firebase Firestore
-    saveProjectToFirestore(savedProj);
+    const token = getGoogleAccessToken();
+    if (token) {
+      syncAllToGoogleSheets(updatedProjects, requests, token).catch(e => console.warn('Background sync note:', e));
+    }
   };
 
-  const handleDeleteProject = async (id: string) => {
+  const handleDeleteProject = (id: string) => {
+    let updatedProjects: Project[] = [];
     setProjects(prev => {
-      const updated = prev.filter(p => p.id !== id);
-      saveProjects(updated);
-      return updated;
+      updatedProjects = prev.filter(p => p.id !== id);
+      saveProjects(updatedProjects);
+      return updatedProjects;
     });
     if (viewingProject && viewingProject.id === id) {
       setViewingProject(null);
     }
-    await deleteProjectFromFirestore(id);
-  };
 
-  const handleManualSyncAll = async () => {
-    const result = await syncAllDataToFirebase(projects, requests);
-    if (result) {
-      setProjects(result.projects);
-      setRequests(result.requests);
-      saveProjects(result.projects);
-      saveRequests(result.requests);
+    const token = getGoogleAccessToken();
+    if (token) {
+      syncAllToGoogleSheets(updatedProjects, requests, token).catch(e => console.warn('Background sync note:', e));
     }
   };
 
-  const handleResetData = async () => {
-    if (window.confirm('คำเตือน: คุณต้องการล้างข้อมูลทั้งหมดในระบบและใน Firebase หรือไม่?')) {
+  const handleResetData = () => {
+    if (window.confirm('คำเตือน: คุณต้องการล้างข้อมูลในระบบหรือไม่?')) {
       const reset = resetAllData();
       setProjects(reset.projects);
       setRequests(reset.requests);
-      await clearAllSampleDataFromFirebase();
     }
   };
 
@@ -297,7 +228,8 @@ export default function App() {
           onNewRequest={() => handleOpenNewRequest()}
           onNewProject={handleOpenNewProject}
           onResetData={handleResetData}
-          onSyncToFirebase={handleManualSyncAll}
+          onSyncToFirebase={() => setIsGoogleSheetsModalOpen(true)}
+          onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
           requestCount={requests.length}
           projectCount={projects.length}
           currentUser={currentUser}
@@ -336,6 +268,7 @@ export default function App() {
             onPrintRequest={handlePrintRequest}
             onNewRequest={() => handleOpenNewRequest()}
             onNewProject={handleOpenNewProject}
+            onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
           />
         )}
 
@@ -443,6 +376,23 @@ export default function App() {
         onClose={() => setIsLoginModalOpen(false)}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
+          pullGoogleSheetsData();
+        }}
+      />
+
+      {/* Google Sheets Unified Database & Image Sync Modal */}
+      <GoogleSheetsSyncModal
+        isOpen={isGoogleSheetsModalOpen}
+        onClose={() => setIsGoogleSheetsModalOpen(false)}
+        projects={projects}
+        requests={requests}
+        currentUser={currentUser}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+        }}
+        onDataSynced={(syncedProjects, syncedRequests) => {
+          setProjects(syncedProjects);
+          setRequests(syncedRequests);
         }}
       />
 
@@ -457,7 +407,7 @@ export default function App() {
             </div>
             <div className="text-slate-400 font-mono text-[11px] flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-              <span>FIREBASE CLOUD DATABASE CONNECTED (bbbrz)</span>
+              <span>GOOGLE SHEETS MASTER DATABASE: Lumencraft Engineering & Project Hub</span>
             </div>
           </div>
         </footer>

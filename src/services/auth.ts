@@ -11,6 +11,8 @@ import { app } from './firebase';
 
 let authInstance: Auth | null = null;
 let googleProvider: GoogleAuthProvider | null = null;
+let cachedAccessToken: string | null = null;
+let isSigningIn = false;
 
 try {
   if (app) {
@@ -19,12 +21,44 @@ try {
     googleProvider.setCustomParameters({
       prompt: 'select_account'
     });
+    // Request Google Sheets and Drive scopes for complete two-way cloud persistence
+    googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+    googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
   }
 } catch (err) {
   console.warn('Firebase Auth is not enabled on this project or failed to register. Using localized auth management.', err);
 }
 
 export const auth = authInstance;
+
+const TOKEN_STORAGE_KEY = 'lumencraft_google_access_token_v1';
+
+export const getGoogleAccessToken = (): string | null => {
+  if (cachedAccessToken) return cachedAccessToken;
+  try {
+    const saved = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    if (saved) {
+      cachedAccessToken = saved;
+      return saved;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+};
+
+export const setGoogleAccessToken = (token: string | null): void => {
+  cachedAccessToken = token;
+  try {
+    if (token) {
+      sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch (e) {
+    // ignore
+  }
+};
 
 export interface AppUser {
   uid: string;
@@ -65,18 +99,26 @@ export function mapFirebaseUser(user: User | null): AppUser | null {
 /**
  * Sign in using Google (Gmail) Provider
  */
-export async function signInWithGoogle(): Promise<AppUser> {
+export async function signInWithGoogle(): Promise<{ user: AppUser; accessToken?: string }> {
   try {
+    isSigningIn = true;
     if (auth && googleProvider) {
       const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        cachedAccessToken = credential.accessToken;
+      }
+
       const appUser = mapFirebaseUser(result.user);
       if (appUser) {
         localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(appUser));
-        return appUser;
+        return { user: appUser, accessToken: cachedAccessToken || undefined };
       }
     }
   } catch (error: any) {
     console.warn('Firebase Google Sign-In notice (fallback to user session):', error?.message || error);
+  } finally {
+    isSigningIn = false;
   }
 
   // Seamless reliable fallback for preview and iframe environments
@@ -88,7 +130,7 @@ export async function signInWithGoogle(): Promise<AppUser> {
     role: 'Admin'
   };
   localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(fallbackUser));
-  return fallbackUser;
+  return { user: fallbackUser };
 }
 
 /**
@@ -111,6 +153,7 @@ export async function signInWithDirectGmail(email: string, name?: string, role: 
  */
 export async function signOutUser(): Promise<void> {
   try {
+    cachedAccessToken = null;
     if (auth) {
       await firebaseSignOut(auth);
     }

@@ -25,8 +25,8 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({
     try {
       setLoading(true);
       setErrorMsg(null);
-      const user = await signInWithGoogle();
-      onLoginSuccess(user);
+      const result = await signInWithGoogle();
+      onLoginSuccess(result.user);
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ Google');
