@@ -1,22 +1,68 @@
 import { Project, EngineerRequest } from '../types';
-import { INITIAL_PROJECTS, INITIAL_REQUESTS } from '../data/initialData';
 
 // Central Master Keys shared across all users and roles
 const MASTER_PROJECTS_KEY = 'lumencraft_master_projects_db_v2';
 const MASTER_REQUESTS_KEY = 'lumencraft_master_requests_db_v2';
 const BACKUP_PROJECTS_KEY = 'lumencraft_backup_projects_db_v2';
 const BACKUP_REQUESTS_KEY = 'lumencraft_backup_requests_db_v2';
+const DELETED_REQUESTS_KEY = 'lumencraft_deleted_requests_ids_v2';
+const DELETED_PROJECTS_KEY = 'lumencraft_deleted_projects_ids_v2';
+
+/**
+ * Get IDs of requests deleted by user
+ */
+export function getDeletedRequestIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_REQUESTS_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch (e) {}
+  return new Set();
+}
+
+/**
+ * Record a deleted request ID so it is never re-resurrected during merge
+ */
+export function recordDeletedRequestId(idOrDocNo: string): void {
+  try {
+    const ids = getDeletedRequestIds();
+    ids.add(idOrDocNo);
+    localStorage.setItem(DELETED_REQUESTS_KEY, JSON.stringify(Array.from(ids)));
+  } catch (e) {}
+}
+
+/**
+ * Get IDs of projects deleted by user
+ */
+export function getDeletedProjectIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_PROJECTS_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch (e) {}
+  return new Set();
+}
+
+/**
+ * Record a deleted project ID
+ */
+export function recordDeletedProjectId(idOrCode: string): void {
+  try {
+    const ids = getDeletedProjectIds();
+    ids.add(idOrCode);
+    localStorage.setItem(DELETED_PROJECTS_KEY, JSON.stringify(Array.from(ids)));
+  } catch (e) {}
+}
 
 /**
  * Load Projects from Unified Master Storage with safe fallback
  */
 export function loadProjects(): Project[] {
   try {
+    const deleted = getDeletedProjectIds();
     const raw = localStorage.getItem(MASTER_PROJECTS_KEY);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return parsed.filter(p => p && !deleted.has(p.id) && !deleted.has(p.projectCode));
       }
     }
 
@@ -24,8 +70,9 @@ export function loadProjects(): Project[] {
     if (backupRaw !== null) {
       const parsedBackup = JSON.parse(backupRaw);
       if (Array.isArray(parsedBackup)) {
-        saveProjects(parsedBackup);
-        return parsedBackup;
+        const filtered = parsedBackup.filter(p => p && !deleted.has(p.id) && !deleted.has(p.projectCode));
+        saveProjects(filtered);
+        return filtered;
       }
     }
 
@@ -55,11 +102,12 @@ export function saveProjects(projects: Project[]): void {
  */
 export function loadRequests(): EngineerRequest[] {
   try {
+    const deleted = getDeletedRequestIds();
     const raw = localStorage.getItem(MASTER_REQUESTS_KEY);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return parsed.filter(r => r && !deleted.has(r.id) && !deleted.has(r.documentNo));
       }
     }
 
@@ -67,8 +115,9 @@ export function loadRequests(): EngineerRequest[] {
     if (backupRaw !== null) {
       const parsedBackup = JSON.parse(backupRaw);
       if (Array.isArray(parsedBackup)) {
-        saveRequests(parsedBackup);
-        return parsedBackup;
+        const filtered = parsedBackup.filter(r => r && !deleted.has(r.id) && !deleted.has(r.documentNo));
+        saveRequests(filtered);
+        return filtered;
       }
     }
 
@@ -118,7 +167,7 @@ export function mergeRequestData(existingReq: EngineerRequest, updatedReq: Parti
 
 /**
  * Non-destructive collection merger for Requests
- * Merges local and remote lists by ID, preserving all records (old & new)
+ * Merges local and remote lists by ID, ignoring deleted items
  */
 export function mergeRequestCollections(
   localList: EngineerRequest[], 
@@ -126,17 +175,18 @@ export function mergeRequestCollections(
 ): { merged: EngineerRequest[]; unsyncedToCloud: EngineerRequest[] } {
   const map = new Map<string, EngineerRequest>();
   const unsyncedToCloud: EngineerRequest[] = [];
+  const deleted = getDeletedRequestIds();
 
-  // 1. Add all cloud items
+  // 1. Add cloud items that are not deleted
   for (const item of cloudList) {
-    if (item && item.id) {
+    if (item && item.id && !deleted.has(item.id) && !deleted.has(item.documentNo)) {
       map.set(item.id, item);
     }
   }
 
-  // 2. Merge local items: if not in cloud, keep it and flag to push to cloud
+  // 2. Merge local items: if not in cloud and not deleted, keep it and flag to push
   for (const item of localList) {
-    if (item && item.id) {
+    if (item && item.id && !deleted.has(item.id) && !deleted.has(item.documentNo)) {
       if (!map.has(item.id)) {
         map.set(item.id, item);
         unsyncedToCloud.push(item);
@@ -165,7 +215,7 @@ export function mergeRequestCollections(
 
 /**
  * Non-destructive collection merger for Projects
- * Merges local and remote lists by ID, preserving all records (old & new)
+ * Merges local and remote lists by ID, ignoring deleted items
  */
 export function mergeProjectCollections(
   localList: Project[], 
@@ -173,17 +223,18 @@ export function mergeProjectCollections(
 ): { merged: Project[]; unsyncedToCloud: Project[] } {
   const map = new Map<string, Project>();
   const unsyncedToCloud: Project[] = [];
+  const deleted = getDeletedProjectIds();
 
-  // 1. Add all cloud items
+  // 1. Add cloud items that are not deleted
   for (const item of cloudList) {
-    if (item && item.id) {
+    if (item && item.id && !deleted.has(item.id) && !deleted.has(item.projectCode)) {
       map.set(item.id, item);
     }
   }
 
   // 2. Merge local items
   for (const item of localList) {
-    if (item && item.id) {
+    if (item && item.id && !deleted.has(item.id) && !deleted.has(item.projectCode)) {
       if (!map.has(item.id)) {
         map.set(item.id, item);
         unsyncedToCloud.push(item);
@@ -210,14 +261,41 @@ export function mergeProjectCollections(
 }
 
 /**
- * Reset all data to clean empty state
+ * Reset all data to clean empty state (wiping all old records)
  */
 export function resetAllData(): { projects: Project[]; requests: EngineerRequest[] } {
   try {
-    localStorage.removeItem(MASTER_PROJECTS_KEY);
-    localStorage.removeItem(MASTER_REQUESTS_KEY);
-    localStorage.removeItem(BACKUP_PROJECTS_KEY);
-    localStorage.removeItem(BACKUP_REQUESTS_KEY);
+    const keysToRemove = [
+      MASTER_PROJECTS_KEY,
+      MASTER_REQUESTS_KEY,
+      BACKUP_PROJECTS_KEY,
+      BACKUP_REQUESTS_KEY,
+      DELETED_REQUESTS_KEY,
+      DELETED_PROJECTS_KEY,
+      'lumencraft_master_projects_db_v1',
+      'lumencraft_master_requests_db_v1',
+      'lumencraft_requests_v3',
+      'lumencraft_projects_v3',
+      'lumencraft_requests_v2',
+      'lumencraft_projects_v2',
+      'lumencraft_projects_v1',
+      'lumencraft_requests_v1',
+      'lumencraft_requests',
+      'lumencraft_projects'
+    ];
+    
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
+
+    // Set empty arrays explicitly to ensure fresh clean state
+    localStorage.setItem(MASTER_PROJECTS_KEY, JSON.stringify([]));
+    localStorage.setItem(MASTER_REQUESTS_KEY, JSON.stringify([]));
+    localStorage.setItem(BACKUP_PROJECTS_KEY, JSON.stringify([]));
+    localStorage.setItem(BACKUP_REQUESTS_KEY, JSON.stringify([]));
+    localStorage.setItem(DELETED_REQUESTS_KEY, JSON.stringify([]));
+    localStorage.setItem(DELETED_PROJECTS_KEY, JSON.stringify([]));
+
     return {
       projects: [],
       requests: []
@@ -230,3 +308,5 @@ export function resetAllData(): { projects: Project[]; requests: EngineerRequest
     };
   }
 }
+
+export const clearAllOldData = resetAllData;

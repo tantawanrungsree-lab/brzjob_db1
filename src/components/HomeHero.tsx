@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActiveView, EngineerRequest, Project } from '../types';
 import { 
   FileText, Building2, ArrowRight, Plus, 
@@ -31,6 +31,29 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
   onOpenGoogleSheets
 }) => {
   const [showChoiceModal, setShowChoiceModal] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState<Date>(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedDateFull = currentDateTime.toLocaleDateString('th-TH', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const formattedTimeFull = currentDateTime.toLocaleTimeString('th-TH', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
   const storedSheetId = getStoredSpreadsheetId();
   const currentSheetUrl = storedSheetId ? getSpreadsheetUrl(storedSheetId) : null;
 
@@ -71,14 +94,31 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
         <div className="relative z-10 space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-2 max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-800/90 text-amber-400 border border-amber-500/30 text-xs font-semibold shadow-inner">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="tracking-wide">LUMENCRAFT ENGINEERING & SERVICE MANAGEMENT SYSTEM</span>
-                <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.2 rounded font-mono font-bold">REV. 2026</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-800/90 text-amber-400 border border-amber-500/30 text-xs font-semibold shadow-inner">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="tracking-wide">LUMENCRAFT ENGINEERING & SERVICE MANAGEMENT SYSTEM</span>
+                  <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.2 rounded font-mono font-bold">REV. 2026</span>
+                </div>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black font-heading tracking-tight text-white leading-tight">
                 ศูนย์กลางควบคุมคำของานวิศวกรรม & บริหารโครงการ
               </h1>
+            </div>
+
+            {/* Real-time Current Clock & Date Widget */}
+            <div className="bg-slate-950/80 border border-slate-700/80 rounded-2xl p-3 sm:px-4 sm:py-3 flex items-center gap-3 backdrop-blur-md self-start lg:self-auto shadow-inner">
+              <div className="p-2 bg-amber-400/10 text-amber-400 rounded-xl border border-amber-400/20">
+                <Clock className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="text-left font-mono">
+                <div className="text-xs text-slate-400 font-medium">เวลาปัจจุบัน (Live System Clock)</div>
+                <div className="text-sm sm:text-base font-bold text-amber-300 flex items-center gap-2">
+                  <span>{formattedTimeFull} น.</span>
+                  <span className="text-xs text-emerald-400 font-semibold">• เดินตรงเวลา</span>
+                </div>
+                <div className="text-[11px] text-slate-300 mt-0.5">{formattedDateFull}</div>
+              </div>
             </div>
           </div>
 
@@ -397,9 +437,9 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2.5 GOOGLE SHEETS UNIFIED CLOUD DATABASE & LOCKED PHOTO SYNC BANNER */}
+      {/* 2.5 GOOGLE SHEETS UNIFIED CLOUD DATABASE & LOCKED PHOTO SYNC BANNER (HIDDEN) */}
       {/* ========================================================================= */}
-      <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white rounded-3xl p-6 sm:p-7 border border-emerald-800/80 shadow-xl relative overflow-hidden">
+      <div className="hidden bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white rounded-3xl p-6 sm:p-7 border border-emerald-800/80 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">

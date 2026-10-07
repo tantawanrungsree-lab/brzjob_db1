@@ -489,12 +489,12 @@ export const EngineerJobPortal: React.FC<EngineerJobPortalProps> = ({
                         {onDelete && (
                           <button
                             onClick={() => {
-                              if (window.confirm(`ยืนยันการลบใบคำขอ ${req.documentNo} ออกจากระบบและ Firebase หรือไม่?`)) {
+                              if (window.confirm(`ยืนยันการลบใบคำขอ ${req.documentNo} (${req.projectName}) ออกจากระบบและ Google Sheet หรือไม่?`)) {
                                 onDelete(req.id);
                               }
                             }}
-                            title="ลบใบคำขอนี้ออกจากระบบและ Firebase"
-                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors"
+                            title="ลบใบคำขอนี้ออกจากระบบและ Google Sheet"
+                            className="p-1 text-rose-500 hover:text-white hover:bg-rose-600 rounded-lg border border-rose-200 hover:border-rose-600 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

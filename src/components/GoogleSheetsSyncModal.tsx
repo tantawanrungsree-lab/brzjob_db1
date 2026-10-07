@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Sheet, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, 
-  Layers, Image as ImageIcon, Lock, ShieldCheck, Database, Search, DownloadCloud
+  Layers, Image as ImageIcon, Lock, ShieldCheck, Database, Search, DownloadCloud, Trash2
 } from 'lucide-react';
 import { Project, EngineerRequest } from '../types';
 import { 
@@ -15,7 +15,7 @@ import {
   MASTER_SHEET_TITLE
 } from '../services/googleSheets';
 import { getGoogleAccessToken, signInWithGoogle, AppUser } from '../services/auth';
-import { mergeRequestCollections, mergeProjectCollections, saveProjects, saveRequests } from '../utils/storage';
+import { mergeRequestCollections, mergeProjectCollections, saveProjects, saveRequests, resetAllData } from '../utils/storage';
 
 interface GoogleSheetsSyncModalProps {
   isOpen: boolean;
@@ -177,6 +177,44 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
     }
   };
 
+  // Clear all data in both Google Sheet and Local State
+  const handleClearAllDataInSheetAndSystem = async () => {
+    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลเก่าทั้งหมดออกจาก Google Sheet และระบบ? ข้อมูลจะถูกล้างใหม่ทั้งหมด')) {
+      return;
+    }
+
+    try {
+      setIsSyncing(true);
+      setSyncStatus('idle');
+      setStatusMessage('กำลังล้างข้อมูลเก่าทั้งหมดออกจากระบบและ Google Sheet...');
+
+      const reset = resetAllData();
+      if (onDataSynced) {
+        onDataSynced(reset.projects, reset.requests);
+      }
+
+      let token = getGoogleAccessToken();
+      if (!token) {
+        const authResult = await signInWithGoogle();
+        token = authResult.accessToken || getGoogleAccessToken();
+        onLoginSuccess(authResult.user);
+      }
+
+      if (token) {
+        const targetId = spreadsheetId.trim() || getStoredSpreadsheetId() || undefined;
+        await syncAllToGoogleSheets([], [], token, targetId, { isDirectWrite: true });
+      }
+
+      setSyncStatus('success');
+      setStatusMessage('✓ ลบข้อมูลเก่าทั้งหมดออกจาก Google Sheet และระบบเรียบร้อยแล้ว');
+    } catch (err: any) {
+      setSyncStatus('error');
+      setStatusMessage(err.message || 'เกิดข้อผิดพลาดในการล้างข้อมูล');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-70 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-xl w-full border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
@@ -304,7 +342,17 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+            <button
+              onClick={handleClearAllDataInSheetAndSystem}
+              disabled={isSyncing}
+              className="py-3 px-3.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50 cursor-pointer"
+              title="ลบข้อมูลเก่าทั้งหมดออกจาก Google Sheet และระบบ เพื่อเริ่มใช้งานชุดข้อมูลใหม่"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>ล้างข้อมูลเก่าทั้งหมด</span>
+            </button>
+
             <button
               onClick={handlePullFromSheets}
               disabled={isSyncing}
@@ -318,10 +366,10 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
             <button
               onClick={handleSyncToSheets}
               disabled={isSyncing}
-              className="flex-1 py-3 px-5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-xs rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2.5 active:scale-98 disabled:opacity-50 cursor-pointer"
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-xs rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'กำลังบันทึกข้อมูล...' : 'บันทึก & ผสานข้อมูลลง Master Sheet'}</span>
+              <span>{isSyncing ? 'กำลังประมวลผล...' : 'บันทึก & ผสาน Master Sheet'}</span>
             </button>
           </div>
 

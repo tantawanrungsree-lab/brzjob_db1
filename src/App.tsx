@@ -11,11 +11,15 @@ import {
   loadRequests, 
   saveRequests, 
   resetAllData, 
-  mergeRequestData
+  mergeRequestData,
+  recordDeletedRequestId,
+  recordDeletedProjectId
 } from './utils/storage';
 import { 
   autoPullAndMergeMasterSpreadsheet,
   syncAllToGoogleSheets, 
+  deleteRequestRowFromGoogleSheets,
+  deleteProjectRowFromGoogleSheets,
   getStoredSpreadsheetId 
 } from './services/googleSheets';
 import { AppUser, subscribeToAuth, signOutUser, getStoredUser, getGoogleAccessToken } from './services/auth';
@@ -52,6 +56,12 @@ export default function App() {
   const [viewingProject, setViewingProject] = useState<Project | null>(null);
 
   const [printingRequest, setPrintingRequest] = useState<EngineerRequest | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
   // Subscribe to Auth State
   useEffect(() => {
@@ -130,7 +140,13 @@ export default function App() {
     }
   };
 
-  const handleDeleteRequest = (id: string) => {
+  const handleDeleteRequest = async (id: string) => {
+    recordDeletedRequestId(id);
+    const target = requests.find(r => r.id === id);
+    if (target?.documentNo) {
+      recordDeletedRequestId(target.documentNo);
+    }
+
     let updatedList: EngineerRequest[] = [];
     setRequests(prev => {
       updatedList = prev.filter(r => r.id !== id);
@@ -138,9 +154,11 @@ export default function App() {
       return updatedList;
     });
 
+    showToast(`✓ ลบใบคำขอ ${target?.documentNo || id} ออกจากระบบและ Google Sheet เรียบร้อยแล้ว`);
+
     const token = getGoogleAccessToken();
     if (token) {
-      syncAllToGoogleSheets(projects, updatedList, token).catch(e => console.warn('Background sync note:', e));
+      await deleteRequestRowFromGoogleSheets(id, projects, updatedList, token);
     }
   };
 
@@ -187,7 +205,13 @@ export default function App() {
     }
   };
 
-  const handleDeleteProject = (id: string) => {
+  const handleDeleteProject = async (id: string) => {
+    recordDeletedProjectId(id);
+    const target = projects.find(p => p.id === id);
+    if (target?.projectCode) {
+      recordDeletedProjectId(target.projectCode);
+    }
+
     let updatedProjects: Project[] = [];
     setProjects(prev => {
       updatedProjects = prev.filter(p => p.id !== id);
@@ -198,17 +222,34 @@ export default function App() {
       setViewingProject(null);
     }
 
+    showToast(`✓ ลบโครงการ ${target?.projectName || target?.projectCode || id} ออกจากระบบและ Google Sheet เรียบร้อยแล้ว`);
+
     const token = getGoogleAccessToken();
     if (token) {
-      syncAllToGoogleSheets(updatedProjects, requests, token).catch(e => console.warn('Background sync note:', e));
+      await deleteProjectRowFromGoogleSheets(id, updatedProjects, requests, token);
     }
   };
 
-  const handleResetData = () => {
-    if (window.confirm('คำเตือน: คุณต้องการล้างข้อมูลในระบบหรือไม่?')) {
+  const handleResetData = async () => {
+    if (window.confirm('คำเตือน: คุณต้องการล้างข้อมูลเก่าทั้งหมดออกจากระบบและ Google Sheet หรือไม่?')) {
       const reset = resetAllData();
       setProjects(reset.projects);
       setRequests(reset.requests);
+      setViewingProject(null);
+      setEditingRequest(null);
+      setEditingProject(null);
+
+      showToast('✓ ล้างข้อมูลเก่าทั้งหมดในระบบเรียบร้อยแล้ว');
+
+      const token = getGoogleAccessToken();
+      if (token) {
+        try {
+          await syncAllToGoogleSheets([], [], token, undefined, { isDirectWrite: true });
+          showToast('✓ ล้างข้อมูลใน Master Google Sheet เรียบร้อยแล้ว');
+        } catch (e) {
+          console.warn('Note on resetting Google Sheets:', e);
+        }
+      }
     }
   };
 
@@ -395,6 +436,14 @@ export default function App() {
           setRequests(syncedRequests);
         }}
       />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-100 bg-slate-900/95 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-emerald-500/50 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span className="text-xs font-bold text-slate-100">{toastMessage}</span>
+        </div>
+      )}
 
       {/* Universal Footer */}
       {activeView !== 'print-request' && (

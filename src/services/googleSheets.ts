@@ -1,5 +1,12 @@
 import { Project, EngineerRequest } from '../types';
-import { mergeRequestCollections, mergeProjectCollections, saveProjects, saveRequests } from '../utils/storage';
+import { 
+  mergeRequestCollections, 
+  mergeProjectCollections, 
+  saveProjects, 
+  saveRequests, 
+  getDeletedRequestIds, 
+  getDeletedProjectIds 
+} from '../utils/storage';
 
 export interface GoogleSheetsSyncResult {
   success: boolean;
@@ -411,6 +418,9 @@ export async function fetchSpreadsheetData(
     const data = await response.json();
     const valueRanges = data.valueRanges || [];
 
+    const deletedReqs = getDeletedRequestIds();
+    const deletedProjs = getDeletedProjectIds();
+
     // Parse Requests
     const requestRows: any[][] = valueRanges[0]?.values || [];
     const parsedRequests: EngineerRequest[] = [];
@@ -418,6 +428,7 @@ export async function fetchSpreadsheetData(
     requestRows.forEach((row) => {
       const docNo = row[0]?.toString()?.trim();
       if (!docNo) return; // Skip blank rows
+      if (deletedReqs.has(docNo)) return; // Skip deleted
 
       const req: EngineerRequest = {
         id: `req_sheet_${docNo.replace(/[^a-zA-Z0-9]/g, '_')}`,
@@ -486,7 +497,9 @@ export async function fetchSpreadsheetData(
         updatedAt: row[25]?.toString() || new Date().toISOString()
       };
 
-      parsedRequests.push(req);
+      if (!deletedReqs.has(req.id)) {
+        parsedRequests.push(req);
+      }
     });
 
     // Parse Projects
@@ -496,6 +509,7 @@ export async function fetchSpreadsheetData(
     projectRows.forEach((row) => {
       const pCode = row[0]?.toString()?.trim();
       if (!pCode) return;
+      if (deletedProjs.has(pCode)) return;
 
       const fuel = parseFloat(row[12]) || 0;
       const toll = parseFloat(row[13]) || 0;
@@ -527,7 +541,9 @@ export async function fetchSpreadsheetData(
         updatedAt: row[17]?.toString() || new Date().toISOString()
       };
 
-      parsedProjects.push(proj);
+      if (!deletedProjs.has(proj.id)) {
+        parsedProjects.push(proj);
+      }
     });
 
     return { requests: parsedRequests, projects: parsedProjects };
@@ -539,13 +555,14 @@ export async function fetchSpreadsheetData(
 
 /**
  * Synchronizes all Requests, Projects, and Image attachments into the Google Spreadsheet
- * NON-DESTRUCTIVE: Always preserves existing records in both local storage and Google Sheet
+ * Supports { isDirectWrite: true } when deleting/updating so deleted rows are cleared completely
  */
 export async function syncAllToGoogleSheets(
   projects: Project[],
   requests: EngineerRequest[],
   accessToken: string,
-  targetSpreadsheetId?: string
+  targetSpreadsheetId?: string,
+  options?: { isDirectWrite?: boolean }
 ): Promise<GoogleSheetsSyncResult> {
   try {
     let sheetId = targetSpreadsheetId || (await getOrFindMasterSpreadsheetId(accessToken));
@@ -559,12 +576,17 @@ export async function syncAllToGoogleSheets(
       sheetId = await getOrFindMasterSpreadsheetId(accessToken);
     }
 
-    // 0. Non-destructive protection: Read existing sheet data first to prevent erasing any rows
-    const existingSheetData = await fetchSpreadsheetData(sheetId, accessToken);
-    
-    // Non-destructively merge incoming with existing sheet data
-    const { merged: finalMergedRequests } = mergeRequestCollections(requests, existingSheetData.requests);
-    const { merged: finalMergedProjects } = mergeProjectCollections(projects, existingSheetData.projects);
+    let finalMergedRequests = requests;
+    let finalMergedProjects = projects;
+
+    // If not a direct write (e.g. general multi-device sync), merge non-destructively
+    if (!options?.isDirectWrite) {
+      const existingSheetData = await fetchSpreadsheetData(sheetId, accessToken);
+      const reqMerge = mergeRequestCollections(requests, existingSheetData.requests);
+      const projMerge = mergeProjectCollections(projects, existingSheetData.projects);
+      finalMergedRequests = reqMerge.merged;
+      finalMergedProjects = projMerge.merged;
+    }
 
     // Save back to local storage cache to keep webapp perfectly synced
     saveRequests(finalMergedRequests);
@@ -735,23 +757,42 @@ export async function syncAllToGoogleSheets(
       }
     });
 
-    // 4. Batch Update Values to Google Sheets
+    // 4. Batch Clear old rows first so deleted rows are completely wiped
+    try {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchClear`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ranges: [
+            "'คำของานวิศวกรรม (Engineer Requests)'!A2:Z2000",
+            "'ตารางโครงการ (Master Projects)'!A2:R2000",
+            "'คลังรูปภาพหลักฐาน (Photos Evidence)'!A2:G2000"
+          ]
+        })
+      });
+    } catch (clearErr) {
+      console.warn('Batch clear warning:', clearErr);
+    }
+
+    // 5. Batch Update fresh Values to Google Sheets
     const valueData = [
       {
-        range: "'คำของานวิศวกรรม (Engineer Requests)'!A1:Z500",
+        range: "'คำของานวิศวกรรม (Engineer Requests)'!A1:Z" + Math.max(requestRows.length + 1, 2),
         values: [requestHeaders, ...requestRows]
       },
       {
-        range: "'ตารางโครงการ (Master Projects)'!A1:R500",
+        range: "'ตารางโครงการ (Master Projects)'!A1:R" + Math.max(projectRows.length + 1, 2),
         values: [projectHeaders, ...projectRows]
       },
       {
-        range: "'คลังรูปภาพหลักฐาน (Photos Evidence)'!A1:G500",
+        range: "'คลังรูปภาพหลักฐาน (Photos Evidence)'!A1:G" + Math.max(photoRows.length + 1, 2),
         values: [photoHeaders, ...photoRows]
       }
     ];
 
-    // Write all preserved and merged rows
     const writeResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, {
       method: 'POST',
       headers: {
@@ -815,7 +856,7 @@ export async function autoPullAndMergeMasterSpreadsheet(
   saveRequests(mergedReqs);
   saveProjects(mergedProjs);
 
-  // If local had unsynced records or sheet was blank, push back so everyone has it
+  // If local had unsynced records, push back so everyone has it
   if (unsyncedReqs.length > 0 || unsyncedProjs.length > 0) {
     await syncAllToGoogleSheets(mergedProjs, mergedReqs, accessToken, sheetId);
   }
@@ -826,5 +867,55 @@ export async function autoPullAndMergeMasterSpreadsheet(
     spreadsheetUrl: getSpreadsheetUrl(sheetId),
     projects: mergedProjs,
     requests: mergedReqs
+  };
+}
+
+/**
+ * Permanently deletes a request row from the Master Google Sheet and updates all tabs
+ */
+export async function deleteRequestRowFromGoogleSheets(
+  requestIdOrDocNo: string,
+  remainingProjects: Project[],
+  remainingRequests: EngineerRequest[],
+  accessToken?: string | null
+): Promise<GoogleSheetsSyncResult> {
+  if (accessToken) {
+    return await syncAllToGoogleSheets(
+      remainingProjects,
+      remainingRequests,
+      accessToken,
+      undefined,
+      { isDirectWrite: true }
+    );
+  }
+  return {
+    success: true,
+    updatedRequestsCount: remainingRequests.length,
+    updatedProjectsCount: remainingProjects.length
+  };
+}
+
+/**
+ * Permanently deletes a project row from the Master Google Sheet and updates all tabs
+ */
+export async function deleteProjectRowFromGoogleSheets(
+  projectCodeOrId: string,
+  remainingProjects: Project[],
+  remainingRequests: EngineerRequest[],
+  accessToken?: string | null
+): Promise<GoogleSheetsSyncResult> {
+  if (accessToken) {
+    return await syncAllToGoogleSheets(
+      remainingProjects,
+      remainingRequests,
+      accessToken,
+      undefined,
+      { isDirectWrite: true }
+    );
+  }
+  return {
+    success: true,
+    updatedRequestsCount: remainingRequests.length,
+    updatedProjectsCount: remainingProjects.length
   };
 }

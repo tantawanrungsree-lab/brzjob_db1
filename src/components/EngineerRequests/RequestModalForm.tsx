@@ -1633,19 +1633,19 @@ export const RequestModalForm: React.FC<RequestModalFormProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm(`ยืนยันการลบใบคำขอ ${formData.documentNo} ออกจากระบบอย่างถาวรหรือไม่?`)) {
+                    if (window.confirm(`ยืนยันการลบใบคำขอ ${formData.documentNo} ออกจากระบบและ Google Sheet อย่างถาวรหรือไม่?`)) {
                       onDelete(formData.id);
                       onClose();
                     }
                   }}
-                  className="px-3.5 py-2 text-xs font-semibold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="px-3.5 py-2 text-xs font-semibold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>ลบคำขอนี้ (Delete)</span>
                 </button>
               )}
               <span className="text-xs text-slate-500 hidden md:inline">
-                * ข้อมูลจะถูกบันทึกและซิงก์ลง Firebase Cloud Database แบบเรียลไทม์
+                * ข้อมูลจะถูกบันทึกและซิงก์ลง Master Google Sheet แบบอัตโนมัติ
               </span>
             </div>
             <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">

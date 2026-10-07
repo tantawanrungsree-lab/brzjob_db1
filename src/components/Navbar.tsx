@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActiveView } from '../types';
 import { 
-  ArrowLeft, Cloud, Check, RefreshCw, LogIn, LogOut, User, Shield, Sheet
+  ArrowLeft, Cloud, Check, RefreshCw, LogIn, LogOut, User, Shield, Sheet, Clock, Trash2
 } from 'lucide-react';
 import { AppUser } from '../services/auth';
 
@@ -24,7 +24,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   activeView,
   setActiveView,
-  onSyncToFirebase,
+  onResetData,
   onOpenGoogleSheets,
   requestCount,
   projectCount,
@@ -32,23 +32,32 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenLogin,
   onSignOut
 }) => {
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncSuccess, setSyncSuccess] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
-  const handleManualSync = async () => {
-    if (!onSyncToFirebase || isSyncing) return;
-    setIsSyncing(true);
-    try {
-      await onSyncToFirebase();
-      setSyncSuccess(true);
-      setTimeout(() => setSyncSuccess(false), 3000);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  // Real-time ticking clock (updates every second)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Format current date in Thai format
+  const formattedDateThai = currentTime.toLocaleDateString('th-TH', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  // Format current time HH:mm:ss
+  const formattedTimeThai = currentTime.toLocaleTimeString('th-TH', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b-2 border-slate-800 text-white shadow-2xl no-print">
@@ -90,8 +99,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Right Executive Status Indicator, User Profile & Google Sheets / Firebase Live Auto-Sync Badge */}
+        {/* Right Executive Status Indicator, Real-time Clock, User Profile & Google Sheets Live Auto-Sync Badge */}
         <div className="flex items-center gap-3">
+
+          {/* Real-time System Clock & Current Date */}
+          <div className="hidden md:flex items-center gap-2.5 bg-slate-950/90 px-3.5 py-2 rounded-2xl border border-slate-800 text-left shadow-inner">
+            <div className="p-1.5 bg-amber-400/10 text-amber-400 rounded-xl border border-amber-400/20">
+              <Clock className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <div className="text-[11px] font-mono font-bold text-amber-300 flex items-center gap-1.5">
+                <span>{formattedTimeThai} น.</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              </div>
+              <div className="text-[10px] text-slate-400 font-mono">
+                {formattedDateThai}
+              </div>
+            </div>
+          </div>
           
           {/* Google Sheets Sync Button */}
           {onOpenGoogleSheets && (
@@ -187,6 +212,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <User className="w-4 h-4 text-amber-400" />
                       <span>สลับบัญชี Gmail / บัญชีอื่น</span>
                     </button>
+
+                    {onResetData && (
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          onResetData();
+                        }}
+                        className="w-full px-3 py-2 text-left text-amber-400 hover:text-amber-200 hover:bg-amber-950/40 rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4 text-amber-400" />
+                        <span>ลบข้อมูลเก่าออกทั้งหมด</span>
+                      </button>
+                    )}
                     
                     <button
                       onClick={() => {
@@ -204,7 +242,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-[11px] font-mono text-slate-300">
+              {onResetData && (
+                <button
+                  onClick={onResetData}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-700 text-[11px] font-mono text-slate-300 hover:text-rose-300 transition-colors cursor-pointer"
+                  title="ล้างข้อมูลเก่าทั้งหมดออกจากระบบ"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                  <span>ล้างข้อมูลเก่า</span>
+                </button>
+              )}
+              <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-[11px] font-mono text-slate-300">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
                 <span>สิทธิ์เต็ม: คีย์ & แก้ไขได้ทันที</span>
               </div>
